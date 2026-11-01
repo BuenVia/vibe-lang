@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Window theme only; the UI itself is themed by Compose (ui/theme/Theme.kt). -->
+    <style name="Theme.VibeLang" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/window_background</item>
+    </style>
+
+    <color name="window_background">#FFF8F9FC</color>
+    <color name="ic_launcher_background">#FF3F51B5</color>
+</resources>

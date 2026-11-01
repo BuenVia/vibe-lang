@@ -4,6 +4,7 @@ Prototype for learning and practising grammar: Spanish B2 and Catalan A1 for now
 
 - `backend/` is a Java 21 / Spring Boot 3.5 REST API with PostgreSQL and Flyway migrations
 - `frontend/` is React 18 (JavaScript) with Vite and React Router; lessons are rendered with react-markdown
+- `android/` is a native Android app (Kotlin, Jetpack Compose) for studying on a phone; see [android/README.md](android/README.md)
 
 ## Data model
 
