@@ -31,8 +31,9 @@ import androidx.navigation.toRoute
 import com.vibelang.android.ui.admin.AdminScreen
 import com.vibelang.android.ui.admin.AdminTab
 import com.vibelang.android.ui.categories.CategoriesScreen
-import com.vibelang.android.ui.flashcards.FlashcardsScreen
+import com.vibelang.android.ui.study.StudyScreen
 import com.vibelang.android.ui.path.PathScreen
+import com.vibelang.android.ui.practice.PracticeScreen
 import com.vibelang.android.ui.settings.SettingsScreen
 import com.vibelang.android.ui.subject.SubjectScreen
 import kotlinx.serialization.Serializable
@@ -50,7 +51,9 @@ import kotlin.reflect.KClass
 
 @Serializable data class SubjectRoute(val id: Long)
 
-@Serializable data class FlashcardsRoute(val subjectId: Long)
+@Serializable data class StudyRoute(val subjectId: Long)
+
+@Serializable data class PracticeRoute(val subjectId: Long)
 
 private data class TopLevel(val label: String, val icon: ImageVector, val route: Any, val routeClass: KClass<*>)
 
@@ -125,12 +128,20 @@ fun VibeLangApp() {
                     subjectId = id,
                     appVm = appVm,
                     onBack = { navController.popBackStack() },
-                    onPractise = { navController.navigate(FlashcardsRoute(id)) },
+                    onStudy = { navController.navigate(StudyRoute(id)) },
+                    onPractice = { navController.navigate(PracticeRoute(id)) },
                 )
             }
-            composable<FlashcardsRoute> { entry ->
-                FlashcardsScreen(
-                    subjectId = entry.toRoute<FlashcardsRoute>().subjectId,
+            composable<StudyRoute> { entry ->
+                StudyScreen(
+                    subjectId = entry.toRoute<StudyRoute>().subjectId,
+                    appVm = appVm,
+                    onBack = { navController.popBackStack() },
+                )
+            }
+            composable<PracticeRoute> { entry ->
+                PracticeScreen(
+                    subjectId = entry.toRoute<PracticeRoute>().subjectId,
                     appVm = appVm,
                     onBack = { navController.popBackStack() },
                 )

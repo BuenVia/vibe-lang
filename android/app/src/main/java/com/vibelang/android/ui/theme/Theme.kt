@@ -51,20 +51,25 @@ private val DarkColors = darkColorScheme(
     error = Color(0xFFFFB4AB),
 )
 
-/** Colours Material 3 doesn't provide: used for the "Got it" action on flashcards. */
+/** Colours Material 3 doesn't provide: used for "Got it" in Study and correct answers in Practice. */
 @Immutable
-data class ExtraColors(val success: Color, val onSuccess: Color, val successContainer: Color)
+data class ExtraColors(
+    val success: Color,
+    val onSuccess: Color,
+    val successContainer: Color,
+    val onSuccessContainer: Color,
+)
 
 val LocalExtraColors = staticCompositionLocalOf {
-    ExtraColors(Color(0xFF2E7D32), Color.White, Color(0xFFC8E6C9))
+    ExtraColors(Color(0xFF2E7D32), Color.White, Color(0xFFC8E6C9), Color(0xFF0B2E0F))
 }
 
 @Composable
 fun VibeLangTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
     val extra = if (darkTheme) {
-        ExtraColors(Color(0xFF81C784), Color(0xFF00390A), Color(0xFF1B5E20))
+        ExtraColors(Color(0xFF81C784), Color(0xFF00390A), Color(0xFF1B5E20), Color(0xFFC8E6C9))
     } else {
-        ExtraColors(Color(0xFF2E7D32), Color.White, Color(0xFFC8E6C9))
+        ExtraColors(Color(0xFF2E7D32), Color.White, Color(0xFFC8E6C9), Color(0xFF0B2E0F))
     }
     androidx.compose.runtime.CompositionLocalProvider(LocalExtraColors provides extra) {
         MaterialTheme(colorScheme = if (darkTheme) DarkColors else LightColors, content = content)

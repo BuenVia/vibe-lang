@@ -1,7 +1,7 @@
 package com.vibelang.android
 
 import com.vibelang.android.data.Vocabulary
-import com.vibelang.android.ui.flashcards.FlashcardSession
+import com.vibelang.android.ui.study.StudySession
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -9,7 +9,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlin.random.Random
 
-class FlashcardSessionTest {
+class StudySessionTest {
 
     private fun card(id: Long) = Vocabulary(id, subjectId = 1, term = "t$id", translation = "tr$id", position = id.toInt())
 
@@ -17,7 +17,7 @@ class FlashcardSessionTest {
 
     @Test
     fun `starts in order without shuffle`() {
-        val s = FlashcardSession.start(cards, shuffle = false)
+        val s = StudySession.start(cards, shuffle = false)
         assertEquals(listOf(1L, 2L, 3L), s.queue.map { it.id })
         assertEquals(3, s.total)
         assertEquals(0f, s.progress)
@@ -26,13 +26,13 @@ class FlashcardSessionTest {
 
     @Test
     fun `shuffle keeps every card`() {
-        val s = FlashcardSession.start(cards, shuffle = true, random = Random(42))
+        val s = StudySession.start(cards, shuffle = true, random = Random(42))
         assertEquals(setOf(1L, 2L, 3L), s.queue.map { it.id }.toSet())
     }
 
     @Test
     fun `got it removes the card and resets the flip`() {
-        val s = FlashcardSession.start(cards, shuffle = false).flip().gotIt()
+        val s = StudySession.start(cards, shuffle = false).flip().gotIt()
         assertEquals(listOf(2L, 3L), s.queue.map { it.id })
         assertEquals(1, s.done)
         assertFalse(s.flipped)
@@ -41,7 +41,7 @@ class FlashcardSessionTest {
 
     @Test
     fun `again moves the card to the end and marks it missed`() {
-        val s = FlashcardSession.start(cards, shuffle = false).flip().again()
+        val s = StudySession.start(cards, shuffle = false).flip().again()
         assertEquals(listOf(2L, 3L, 1L), s.queue.map { it.id })
         assertEquals(setOf(1L), s.missed)
         assertEquals(0, s.done)
@@ -49,7 +49,7 @@ class FlashcardSessionTest {
 
     @Test
     fun `finishes after every card is got`() {
-        var s = FlashcardSession.start(cards, shuffle = false)
+        var s = StudySession.start(cards, shuffle = false)
         s = s.again().gotIt().gotIt().gotIt()
         assertTrue(s.isFinished)
         assertNull(s.current)
@@ -61,7 +61,7 @@ class FlashcardSessionTest {
 
     @Test
     fun `single card answered again stays current but gets a new step`() {
-        val s = FlashcardSession.start(listOf(card(7)), shuffle = false)
+        val s = StudySession.start(listOf(card(7)), shuffle = false)
         val next = s.again()
         assertEquals(7L, next.current?.id)
         assertEquals(s.step + 1, next.step)

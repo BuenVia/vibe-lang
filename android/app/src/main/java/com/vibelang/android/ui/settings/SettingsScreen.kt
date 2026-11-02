@@ -53,7 +53,7 @@ fun SettingsScreen(appVm: AppViewModel) {
                     RadioRow(
                         selected = s.mode == Mode.STUDY,
                         title = "Study",
-                        subtitle = "Read lessons and practise flashcards. Editing is hidden.",
+                        subtitle = "Read lessons, study flashcards and practise writing. Editing is hidden.",
                         onClick = { appVm.setMode(Mode.STUDY) },
                     )
                     RadioRow(
@@ -81,8 +81,8 @@ fun SettingsScreen(appVm: AppViewModel) {
                 }
             }
 
-            Section("Flashcards") {
-                Text("Show on the front of the card", style = MaterialTheme.typography.bodyMedium)
+            Section("Study & Practice") {
+                Text("Study: show on the front of the card", style = MaterialTheme.typography.bodyMedium)
                 Column(Modifier.selectableGroup()) {
                     RadioRow(
                         selected = s.cardFront == CardFront.TERM,
@@ -108,7 +108,7 @@ fun SettingsScreen(appVm: AppViewModel) {
                         )
                         .padding(vertical = 8.dp),
                 ) {
-                    Text("Shuffle cards", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                    Text("Shuffle words", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
                     Switch(checked = s.shuffleCards, onCheckedChange = null)
                 }
             }
