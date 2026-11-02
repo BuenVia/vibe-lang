@@ -3,7 +3,7 @@ import { api } from '../api.js';
 
 const STORAGE_KEY = 'vibe-lang.settings';
 const DEFAULTS = {
-  mode: 'study', // 'study' | 'admin'
+  mode: 'learner', // 'learner' | 'admin'
   courseId: null,
   cardFront: 'term', // 'term' | 'translation'
   shuffleCards: true,
@@ -11,7 +11,9 @@ const DEFAULTS = {
 
 function loadSettings() {
   try {
-    return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') };
+    const saved = { ...DEFAULTS, ...JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') };
+    // 'study' was the old name of learner mode; anything that isn't admin is learner.
+    return { ...saved, mode: saved.mode === 'admin' ? 'admin' : 'learner' };
   } catch {
     return DEFAULTS;
   }

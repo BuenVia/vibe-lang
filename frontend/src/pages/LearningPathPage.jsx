@@ -4,7 +4,7 @@ import { courseLabel, useSettings } from '../context/SettingsContext.jsx';
 import { useLoad } from '../useLoad.js';
 import { ErrorMessage, Loading, NoCourse } from '../components/Status.jsx';
 
-export default function StudyPathPage() {
+export default function LearningPathPage() {
   const { course, isAdmin, coursesError } = useSettings();
   const courseId = course?.id;
   const { data: subjects, error, loading } = useLoad(

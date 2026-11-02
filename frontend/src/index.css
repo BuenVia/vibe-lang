@@ -58,7 +58,7 @@ code { background: var(--primary-soft); padding: 0.1em 0.35em; border-radius: 4p
 .breadcrumb { margin: 0 0 0.5rem; font-size: 0.9rem; color: var(--muted); }
 
 .mode-badge { font-size: 0.75rem; font-weight: 600; padding: 0.2rem 0.6rem; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.03em; }
-.mode-badge.study { background: var(--primary-soft); color: var(--primary); }
+.mode-badge.learner { background: var(--primary-soft); color: var(--primary); }
 .mode-badge.admin { background: var(--danger); color: #fff; }
 
 /* Generic */

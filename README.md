@@ -53,8 +53,9 @@ Vite proxies `/api` to the backend.
 
 ## Using it
 
-- **Study mode** (the default) shows the learning path, categories, lessons, vocabulary lists and flashcards.
-  The flashcard keys are Space to flip, → for "got it" and ← for "again".
+- **Learner mode** (the default) shows the learning path, categories, lessons, vocabulary lists and **Study**
+  (flashcards). The Study keys are Space to flip, → for "got it" and ← for "again". The Android app also has
+  **Practice**, where you write the translation of each term.
 - **Admin mode** is turned on in **Settings**. It adds an *Admin* section where you create, edit, delete and
   reorder courses, categories and subjects. It also adds editors on each subject page: a Markdown lesson editor
   with live preview, and inline vocabulary editing with bulk import (`term | translation | notes`, one per line).

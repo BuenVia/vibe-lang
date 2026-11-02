@@ -208,7 +208,7 @@ The browser only lets the web app call the API if the API lists the web app's or
 
 1. Open `https://vibe-lang.onrender.com`. The learning path for Spanish B2 should appear. The first request can
    take up to about a minute if the API was asleep (see below).
-2. Open a subject, read the lesson and practise its flashcards.
+2. Open a subject, read the lesson and study its flashcards.
 3. Go to **Settings → Admin**, then create a test category and delete it again.
 4. Refresh the browser on a subject page. It should reload the page, not show a 404.
 
