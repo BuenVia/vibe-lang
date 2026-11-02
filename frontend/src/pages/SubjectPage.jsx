@@ -40,8 +40,8 @@ export default function SubjectPage() {
           {subject.description && <p className="muted">{subject.description}</p>}
         </div>
         {vocabulary.length > 0 ? (
-          <Link className="button primary" to={`/subjects/${id}/flashcards`}>
-            Practise {vocabulary.length} flashcards
+          <Link className="button primary" to={`/subjects/${id}/study`}>
+            Study {vocabulary.length} flashcards
           </Link>
         ) : (
           <button className="primary" disabled>

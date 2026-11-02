@@ -16,14 +16,15 @@ For each grammar topic the learner can:
 
 1. **Follow a learning path.** Topics ("subjects") are studied in a fixed, curated order.
 2. **Read a lesson.** This is an explanation of the topic written in Markdown (headings, tables, bold, quotes…).
-3. **Practise vocabulary with flashcards.** These are the words and expressions related to the topic.
+3. **Study vocabulary with flashcards.** These are the words and expressions related to the topic.
+4. **Practice vocabulary by writing** (Android only for now). The learner types the translation of each term.
 
 The app has two modes:
 
 | Mode | Who it's for | What it shows |
 |---|---|---|
-| **Study** (default) | The learner | Learning path, categories, lessons, vocabulary lists, flashcards. Read-only. |
-| **Admin** | The content author | Everything in Study mode, plus create/edit/delete/reorder for all content. |
+| **Learner** (default) | The learner | Learning path, categories, lessons, vocabulary lists, Study (flashcards) and Practice (writing). Read-only. |
+| **Admin** | The content author | Everything in Learner mode, plus create/edit/delete/reorder for all content. |
 
 The user switches modes on a **Settings** screen. The mode is a **client-side preference only**: the API has no
 authentication and no concept of users or roles (see [§8](#8-current-limitations)).
@@ -270,18 +271,19 @@ is the re-ordered list with updated `position` values, so use it as the new stat
 
 ## 6. Screens to build (matching the web app)
 
-### Study mode
+### Learner mode
 
 | Screen | Data | Behaviour |
 |---|---|---|
 | **Learning path** (home) | `GET /api/courses/{id}/subjects` | Numbered list in the order returned. Each row shows the title, description, a category chip, and "Lesson / No lesson · N words". Tapping a row opens the subject. |
 | **Course picker** (app bar dropdown) | `GET /api/courses` | Shows "language level", e.g. "Spanish B2". Selecting one reloads the path. Remember the choice. If the saved course no longer exists, fall back to the first course. |
 | **Categories** | `GET /api/courses/{id}/categories` + `…/subjects` | One card per category (in category order) listing its subjects, filtered by `categoryId`. |
-| **Subject** | `GET /api/subjects/{id}`, `…/lesson`, `…/vocabulary` | Header with the title, description and category. Two tabs: **Lesson** (rendered Markdown, or "no lesson yet") and **Vocabulary (n)** (term / translation / notes list). A **Practise n flashcards** button, disabled when n = 0. |
-| **Flashcards** | `GET /api/subjects/{id}/vocabulary` | See below. |
-| **Settings** | local only | Mode (Study/Admin), course, flashcard front side, shuffle on/off. |
+| **Subject** | `GET /api/subjects/{id}`, `…/lesson`, `…/vocabulary` | Header with the title, description and category. Two tabs: **Lesson** (rendered Markdown, or "no lesson yet") and **Vocabulary (n)** (term / translation / notes list). A **Study n flashcards** button, disabled when n = 0. The Android app shows separate **Study** and **Practice** buttons. |
+| **Study** | `GET /api/subjects/{id}/vocabulary` | Flashcards. See below. |
+| **Practice** (Android only) | `GET /api/subjects/{id}/vocabulary` | Writing practice. See below. |
+| **Settings** | local only | Mode (Learner/Admin), course, Study card front side, shuffle on/off. |
 
-### Flashcard session (logic used by the web app)
+### Study session (flashcards; logic used by the web app)
 
 ```
 deck  = shuffleSetting ? shuffled(vocabulary) : vocabulary
@@ -294,12 +296,33 @@ tap card            → flip to the back (the other side + notes if present)
 progress            = (total - queue.size) / total
 
 when queue is empty → summary: "You went through {total} cards and missed {missed.size}"
-                      [Practise missed cards] → restart with only the missed items
+                      [Study missed cards]    → restart with only the missed items
                       [Start again]           → restart with the full vocabulary
 ```
 
 The web app uses Space to flip and ←/→ for Again/Got it. On Android, consider swipe left = Again and
 swipe right = Got it.
+
+### Practice session (writing; Android only so far)
+
+```
+queue = shuffleSetting ? shuffled(vocabulary) : vocabulary;  missed = {};  total = queue.size
+
+show queue[0].term; the learner types the translation
+"Check"             → compare with queue[0].translation and show the result (+ notes)
+"Next" if correct   → remove queue[0]
+"Next" if wrong     → move queue[0] to the end of the queue; add its id to `missed`
+                      (it keeps going to the end until it is answered correctly)
+progress            = (total - queue.size) / total
+
+when queue is empty → summary: "{total - missed.size} of {total} right first time" + list of missed words
+                      [Practice missed words] → restart with only the missed items
+                      [Start again]           → restart with the full vocabulary
+```
+
+Answer checking ignores case, punctuation and extra spaces, accepts any alternative separated by `/` or `;`,
+treats words in `(brackets)` as optional, and accepts a missing accent but points it out. It runs entirely on
+the device; no API calls are needed.
 
 ### Admin mode (shown only when Mode = Admin)
 
@@ -315,7 +338,7 @@ swipe right = Got it.
 
 | Key | Values | Default |
 |---|---|---|
-| `mode` | `study` \| `admin` | `study` |
+| `mode` | `learner` \| `admin` (older clients stored `study`; treat it as `learner`) | `learner` |
 | `courseId` | `Long?` | first course |
 | `cardFront` | `term` \| `translation` | `term` |
 | `shuffleCards` | `Boolean` | `true` |
@@ -442,7 +465,7 @@ Notes:
   only a UI switch. Before publishing an app that points at a public API, add authentication on the server
   (for example an admin API key or user accounts with roles). The Android client will then need to send
   credentials on write requests.
-- **No per-user progress.** Flashcard results aren't stored on the server. A "learned" or spaced-repetition
+- **No per-user progress.** Study and Practice results aren't stored on the server. A "learned" or spaced-repetition
   feature would need new endpoints. Until then it could be stored locally, e.g. with Room.
 - **No pagination.** List endpoints return everything. That's fine for the current content size.
 - **No offline support.** Every screen loads from the API. Consider caching courses, subjects, lessons and

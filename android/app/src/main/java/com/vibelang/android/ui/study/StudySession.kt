@@ -1,16 +1,16 @@
-package com.vibelang.android.ui.flashcards
+package com.vibelang.android.ui.study
 
 import com.vibelang.android.data.Vocabulary
 import kotlin.random.Random
 
 /**
- * Immutable state of a flashcard run, using the same rules as the web app:
+ * Immutable state of a Study (flashcard) run, using the same rules as the web app:
  * "Got it" removes the current card; "Again" moves it to the end of the queue and marks it as missed.
  *
  * [round] increases every time a session starts and [step] every time a card is answered, so the UI
  * can tell cards apart even when the same card comes up twice in a row.
  */
-data class FlashcardSession(
+data class StudySession(
     val queue: List<Vocabulary>,
     val total: Int,
     val missed: Set<Long> = emptySet(),
@@ -23,19 +23,19 @@ data class FlashcardSession(
     val progress: Float get() = if (total == 0) 0f else done.toFloat() / total
     val isFinished: Boolean get() = queue.isEmpty()
 
-    fun flip(): FlashcardSession = if (isFinished) this else copy(flipped = !flipped)
+    fun flip(): StudySession = if (isFinished) this else copy(flipped = !flipped)
 
-    fun gotIt(): FlashcardSession =
+    fun gotIt(): StudySession =
         if (isFinished) this else copy(queue = queue.drop(1), flipped = false, step = step + 1)
 
-    fun again(): FlashcardSession {
+    fun again(): StudySession {
         val card = current ?: return this
         return copy(queue = queue.drop(1) + card, missed = missed + card.id, flipped = false, step = step + 1)
     }
 
     companion object {
         fun start(cards: List<Vocabulary>, shuffle: Boolean, round: Int = 0, random: Random = Random.Default) =
-            FlashcardSession(
+            StudySession(
                 queue = if (shuffle) cards.shuffled(random) else cards,
                 total = cards.size,
                 round = round,

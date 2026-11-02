@@ -14,7 +14,8 @@ function shuffle(list) {
   return copy;
 }
 
-export default function FlashcardsPage() {
+/** Study: flashcards you flip, then mark as "Got it" or "Again". */
+export default function StudyPage() {
   const { id } = useParams();
   const { settings, update } = useSettings();
   const { data, error, loading } = useLoad(async () => {
@@ -82,7 +83,7 @@ export default function FlashcardsPage() {
         <Link to={`/subjects/${id}`}>← {subject.title}</Link>
       </p>
       <div className="page-header">
-        <h1>Flashcards</h1>
+        <h1>Study</h1>
         <div className="actions">
           <label className="inline">
             Front:
@@ -151,7 +152,7 @@ export default function FlashcardsPage() {
           <div className="flashcard-actions">
             {missed.size > 0 && (
               <button onClick={() => start(vocabulary.filter((v) => missed.has(v.id)))}>
-                Practise missed cards
+                Study missed cards
               </button>
             )}
             <button className="primary" onClick={() => start(vocabulary)}>

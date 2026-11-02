@@ -13,12 +13,12 @@ export default function SettingsPage() {
           <input
             type="radio"
             name="mode"
-            checked={settings.mode === 'study'}
-            onChange={() => update({ mode: 'study' })}
+            checked={settings.mode === 'learner'}
+            onChange={() => update({ mode: 'learner' })}
           />
           <span>
-            <strong>Study</strong>
-            <span className="muted"> — read lessons and practise flashcards. Editing is hidden.</span>
+            <strong>Learner</strong>
+            <span className="muted"> — read lessons and study flashcards. Editing is hidden.</span>
           </span>
         </label>
         <label className="radio">
@@ -51,7 +51,7 @@ export default function SettingsPage() {
       </div>
 
       <div className="card">
-        <h2>Flashcards</h2>
+        <h2>Study</h2>
         <label className="field">
           <span>Show on the front of the card</span>
           <select value={settings.cardFront} onChange={(e) => update({ cardFront: e.target.value })}>

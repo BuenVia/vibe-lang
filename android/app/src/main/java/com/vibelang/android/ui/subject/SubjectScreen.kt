@@ -26,6 +26,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -74,9 +75,15 @@ import com.vibelang.android.ui.components.MarkdownText
 import com.vibelang.android.ui.components.StateContent
 import com.vibelang.android.ui.components.Tag
 
-/** One subject: header, Practise button and Lesson / Vocabulary tabs. Editors appear in admin mode. */
+/** One subject: header, Study and Practice buttons and Lesson / Vocabulary tabs. Editors appear in admin mode. */
 @Composable
-fun SubjectScreen(subjectId: Long, appVm: AppViewModel, onBack: () -> Unit, onPractise: () -> Unit) {
+fun SubjectScreen(
+    subjectId: Long,
+    appVm: AppViewModel,
+    onBack: () -> Unit,
+    onStudy: () -> Unit,
+    onPractice: () -> Unit,
+) {
     val vm = appViewModel { SubjectViewModel(it.api) }
     LaunchedEffect(subjectId) { vm.load(subjectId) }
 
@@ -141,18 +148,28 @@ fun SubjectScreen(subjectId: Long, appVm: AppViewModel, onBack: () -> Unit, onPr
                             )
                         }
                         Spacer(Modifier.size(4.dp))
-                        Button(
-                            onClick = onPractise,
-                            enabled = d.vocabulary.isNotEmpty(),
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            if (d.vocabulary.isNotEmpty()) {
-                                Icon(Icons.Filled.PlayArrow, contentDescription = null)
-                                Spacer(Modifier.width(8.dp))
-                                Text("Practise ${d.vocabulary.size} flashcards")
-                            } else {
-                                Text("No flashcards yet")
+                        if (d.vocabulary.isEmpty()) {
+                            Button(onClick = {}, enabled = false, modifier = Modifier.fillMaxWidth()) {
+                                Text("No vocabulary yet")
                             }
+                        } else {
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                                Button(onClick = onStudy, modifier = Modifier.weight(1f)) {
+                                    Icon(Icons.Filled.PlayArrow, contentDescription = null)
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Study")
+                                }
+                                FilledTonalButton(onClick = onPractice, modifier = Modifier.weight(1f)) {
+                                    Icon(Icons.Filled.Edit, contentDescription = null)
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Practice")
+                                }
+                            }
+                            Text(
+                                "${d.vocabulary.size} words · Study with flashcards, or practice by writing the translation.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                         }
                     }
 

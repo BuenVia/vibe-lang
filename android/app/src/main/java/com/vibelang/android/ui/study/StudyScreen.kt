@@ -1,6 +1,6 @@
 @file:OptIn(ExperimentalMaterial3Api::class)
 
-package com.vibelang.android.ui.flashcards
+package com.vibelang.android.ui.study
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
@@ -71,20 +71,20 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 
-data class FlashcardData(val subject: Subject, val vocabulary: List<Vocabulary>)
+data class StudyData(val subject: Subject, val vocabulary: List<Vocabulary>)
 
-class FlashcardsViewModel(private val api: VibeLangApi) : LoadViewModel<Long, FlashcardData>() {
-    override suspend fun fetch(key: Long): FlashcardData = coroutineScope {
+class StudyViewModel(private val api: VibeLangApi) : LoadViewModel<Long, StudyData>() {
+    override suspend fun fetch(key: Long): StudyData = coroutineScope {
         val subject = async { api.subject(key) }
         val vocabulary = async { api.vocabulary(key) }
-        FlashcardData(subject.await(), vocabulary.await())
+        StudyData(subject.await(), vocabulary.await())
     }
 
-    private val _session = MutableStateFlow<FlashcardSession?>(null)
-    val session: StateFlow<FlashcardSession?> = _session.asStateFlow()
+    private val _session = MutableStateFlow<StudySession?>(null)
+    val session: StateFlow<StudySession?> = _session.asStateFlow()
 
     fun start(cards: List<Vocabulary>, shuffle: Boolean) {
-        _session.value = FlashcardSession.start(cards, shuffle, round = (_session.value?.round ?: 0) + 1)
+        _session.value = StudySession.start(cards, shuffle, round = (_session.value?.round ?: 0) + 1)
     }
 
     /** Starts the first session once the vocabulary has loaded; later reloads keep the current session. */
@@ -98,8 +98,8 @@ class FlashcardsViewModel(private val api: VibeLangApi) : LoadViewModel<Long, Fl
 }
 
 @Composable
-fun FlashcardsScreen(subjectId: Long, appVm: AppViewModel, onBack: () -> Unit) {
-    val vm = appViewModel { FlashcardsViewModel(it.api) }
+fun StudyScreen(subjectId: Long, appVm: AppViewModel, onBack: () -> Unit) {
+    val vm = appViewModel { StudyViewModel(it.api) }
     LaunchedEffect(subjectId) { vm.load(subjectId) }
 
     val state by vm.state.collectAsStateWithLifecycle()
@@ -116,7 +116,7 @@ fun FlashcardsScreen(subjectId: Long, appVm: AppViewModel, onBack: () -> Unit) {
             TopAppBar(
                 title = {
                     Column {
-                        Text("Flashcards")
+                        Text("Study")
                         data?.let {
                             Text(
                                 it.subject.title,
@@ -158,7 +158,7 @@ fun FlashcardsScreen(subjectId: Long, appVm: AppViewModel, onBack: () -> Unit) {
                     s == null -> Unit
                     s.isFinished -> Summary(
                         session = s,
-                        onPractiseMissed = { vm.start(d.vocabulary.filter { it.id in s.missed }, shuffle) },
+                        onStudyMissed = { vm.start(d.vocabulary.filter { it.id in s.missed }, shuffle) },
                         onRestart = { vm.start(d.vocabulary, shuffle) },
                     )
                     else -> CardRun(
@@ -176,7 +176,7 @@ fun FlashcardsScreen(subjectId: Long, appVm: AppViewModel, onBack: () -> Unit) {
 
 @Composable
 private fun CardRun(
-    session: FlashcardSession,
+    session: StudySession,
     termFirst: Boolean,
     onFlip: () -> Unit,
     onGotIt: () -> Unit,
@@ -351,7 +351,7 @@ private fun CardText(text: String, notes: String?) {
 }
 
 @Composable
-private fun Summary(session: FlashcardSession, onPractiseMissed: () -> Unit, onRestart: () -> Unit) {
+private fun Summary(session: StudySession, onStudyMissed: () -> Unit, onRestart: () -> Unit) {
     Column(
         Modifier.fillMaxSize().padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -372,8 +372,8 @@ private fun Summary(session: FlashcardSession, onPractiseMissed: () -> Unit, onR
             modifier = Modifier.widthIn(max = 400.dp).fillMaxWidth(),
         ) {
             if (session.missed.isNotEmpty()) {
-                OutlinedButton(onClick = onPractiseMissed, modifier = Modifier.fillMaxWidth()) {
-                    Text("Practise missed cards")
+                OutlinedButton(onClick = onStudyMissed, modifier = Modifier.fillMaxWidth()) {
+                    Text("Study missed cards")
                 }
             }
             Button(onClick = onRestart, modifier = Modifier.fillMaxWidth()) { Text("Start again") }
