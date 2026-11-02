@@ -1,7 +1,7 @@
 # Vibe Lang for Android
 
 A native Kotlin / Jetpack Compose client for the Vibe Lang API. It does the same things as the React web app
-(`../frontend`), with **Study mode** as the main experience and **Admin mode** for editing content.
+(`../frontend`), with **Learner mode** as the main experience and **Admin mode** for editing content.
 
 ## Open and run
 

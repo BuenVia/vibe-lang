@@ -51,10 +51,10 @@ fun SettingsScreen(appVm: AppViewModel) {
             Section("Mode") {
                 Column(Modifier.selectableGroup()) {
                     RadioRow(
-                        selected = s.mode == Mode.STUDY,
-                        title = "Study",
+                        selected = s.mode == Mode.LEARNER,
+                        title = "Learner",
                         subtitle = "Read lessons, study flashcards and practise writing. Editing is hidden.",
-                        onClick = { appVm.setMode(Mode.STUDY) },
+                        onClick = { appVm.setMode(Mode.LEARNER) },
                     )
                     RadioRow(
                         selected = s.mode == Mode.ADMIN,

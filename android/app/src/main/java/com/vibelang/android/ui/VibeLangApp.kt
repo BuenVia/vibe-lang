@@ -63,7 +63,7 @@ fun VibeLangApp() {
     val settings by appVm.settings.collectAsStateWithLifecycle()
     val navController = rememberNavController()
 
-    // Wait for stored settings so the app doesn't flash study mode before switching to admin.
+    // Wait for stored settings so the app doesn't flash learner mode before switching to admin.
     val s = settings ?: return Box(Modifier.fillMaxSize())
 
     val tabs = buildList {

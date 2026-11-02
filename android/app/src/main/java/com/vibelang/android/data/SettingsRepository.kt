@@ -9,13 +9,14 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-enum class Mode { STUDY, ADMIN }
+/** App mode. Installs that stored the old "STUDY" value fall back to the default, [LEARNER]. */
+enum class Mode { LEARNER, ADMIN }
 
 enum class CardFront { TERM, TRANSLATION }
 
 /** Local preferences (the web app keeps the same values in localStorage). */
 data class Settings(
-    val mode: Mode = Mode.STUDY,
+    val mode: Mode = Mode.LEARNER,
     val courseId: Long? = null,
     val cardFront: CardFront = CardFront.TERM,
     val shuffleCards: Boolean = true,
@@ -36,7 +37,7 @@ class SettingsRepository(private val context: Context) {
 
     val settings: Flow<Settings> = context.dataStore.data.map { p ->
         Settings(
-            mode = p[Keys.mode]?.let { runCatching { Mode.valueOf(it) }.getOrNull() } ?: Mode.STUDY,
+            mode = p[Keys.mode]?.let { runCatching { Mode.valueOf(it) }.getOrNull() } ?: Mode.LEARNER,
             courseId = p[Keys.courseId],
             cardFront = p[Keys.cardFront]?.let { runCatching { CardFront.valueOf(it) }.getOrNull() }
                 ?: CardFront.TERM,
