@@ -3,6 +3,7 @@ package com.vibelang.android
 import com.vibelang.android.data.Vocabulary
 import com.vibelang.android.ui.practice.AnswerChecker
 import com.vibelang.android.ui.practice.PracticeSession
+import com.vibelang.android.ui.practice.Spoken
 import com.vibelang.android.ui.practice.Verdict
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -13,8 +14,9 @@ import kotlin.random.Random
 
 class PracticeSessionTest {
 
-    private fun word(id: Long, translation: String = "tr$id") =
-        Vocabulary(id, subjectId = 1, term = "t$id", translation = translation, position = id.toInt())
+    /** Practice shows the English translation and expects the Spanish term, so [term] is the answer. */
+    private fun word(id: Long, term: String = "tr$id") =
+        Vocabulary(id, subjectId = 1, term = term, translation = "en$id", position = id.toInt())
 
     private val words = listOf(word(1), word(2), word(3))
 
@@ -143,5 +145,24 @@ class PracticeSessionTest {
         assertEquals(Verdict.INCORRECT, check("!!", "house"))
         assertEquals(Verdict.INCORRECT, check("horse", "house"))
         assertEquals(Verdict.INCORRECT, check("house", "the house"))
+    }
+
+    @Test
+    fun `the answer is the Spanish term, not the English translation`() {
+        val word = Vocabulary(1, subjectId = 1, term = "a menudo", translation = "often", position = 1)
+        val s = PracticeSession.start(listOf(word), shuffle = false)
+        assertEquals(Verdict.INCORRECT, s.submit("often").feedback?.verdict)
+        assertEquals(Verdict.CORRECT, s.submit("A menudo").feedback?.verdict)
+    }
+
+    @Test
+    fun `spoken answer is graded against the term`() {
+        val word = Vocabulary(1, subjectId = 1, term = "de vez en cuando", translation = "from time to time", position = 1)
+        val s = PracticeSession.start(listOf(word), shuffle = false)
+        val result = Spoken.best(listOf(word.term), listOf("de vez en canto", "pues de vez en cuando"))!!
+        val checked = s.submitSpoken(result, responseMs = 2100)
+        assertEquals(Verdict.CORRECT, checked.feedback?.verdict)
+        assertEquals("pues de vez en cuando", checked.feedback?.heard)
+        assertTrue(checked.next().isFinished)
     }
 }

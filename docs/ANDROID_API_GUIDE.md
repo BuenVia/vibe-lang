@@ -400,8 +400,8 @@ swipe right = Got it.
 ```
 queue = shuffleSetting ? shuffled(vocabulary) : vocabulary;  missed = {};  total = queue.size
 
-show queue[0].term; the learner types the translation
-"Check"             → compare with queue[0].translation and show the result (+ notes)
+show queue[0].translation (English); the learner types or says the term (Spanish)
+"Check"             → compare with queue[0].term and show the result (+ notes)
 "Next" if correct   → remove queue[0]
 "Next" if wrong     → move queue[0] to the end of the queue; add its id to `missed`
                       (it keeps going to the end until it is answered correctly)
@@ -438,7 +438,7 @@ The parsing and checking live in `android/.../ui/practice/Cloze.kt` + `AnswerChe
 ### Review session (spaced repetition; web and Android)
 
 ```
-queue = items from /due in the order returned (words → type the translation; sentences → fill the gaps)
+queue = items from /due in the order returned (words → see the English, give the Spanish term; sentences → fill the gaps)
 same Check / Next / "wrong goes to the end" flow as Practice and Fill the gap
 time each prompt from when it appears to Check; on the FIRST attempt at each item, POST /api/reviews
 summary → [Check for more] (reload /due) / [Back to the path]
@@ -452,7 +452,8 @@ practice.
 
 ### Speaking (web and Android)
 
-Sentences (Fill the gap, and sentence items in Review) can be answered by voice. The recogniser returns up to five
+Words (Practice, and word items in Review: the answer is the Spanish term) and sentences (Fill the gap, and
+sentence items in Review) can be answered by voice. The recogniser returns up to five
 guesses; each gap counts as right when one of its accepted answers appears as whole words after the previous gap's
 match, and the guess with the most right gaps wins (`Spoken.kt` / `bestSpoken` in `cloze.js`). The answer is
 reported with `mode: SPEAK` and the same speed limit as a typed answer, timed until the recogniser returns. The

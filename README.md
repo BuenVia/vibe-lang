@@ -56,7 +56,7 @@ Vite proxies `/api` to the backend.
 
 - **Learner mode** (the default) shows the learning path, categories, lessons, vocabulary lists and **Study**
   (flashcards). The Study keys are Space to flip, → for "got it" and ← for "again". The Android app also has
-  **Practice**, where you write the translation of each term.
+  **Practice**, where you see each word's English and write (or say, with 🎤) the Spanish.
 - **Fill the gap** (web and Android) shows a subject's example sentences with the target word(s) blanked out,
   plus the translation and an optional hint (e.g. the infinitive). You type the missing word(s); the rule's
   explanation is shown after you check. Gaps are marked in the sentence text with double braces, and `/`
@@ -67,8 +67,8 @@ Vite proxies `/api` to the backend.
   given within the time limit (5 s for a typed answer by default, 3 s to flip a flashcard). The learning path
   shows "Today's review" (due and new items) and a progress bar per subject. The time limit, the speed rule and
   the number of new items per day are in Settings.
-- **Speaking** (web and Android): in Fill the gap and for sentences in Review, 🎤 lets you say the whole sentence
-  instead of typing. Each gap is checked against what the recogniser heard (filler words are ignored). 🔊 reads the
+- **Speaking** (web and Android): in Fill the gap, Practice and Review, 🎤 lets you say the Spanish (a word or the
+  whole sentence) instead of typing. Each gap is checked against what the recogniser heard (filler words are ignored). 🔊 reads the
   Spanish aloud, and "Read answers aloud" in Settings does it after every Check. It uses the device's own speech
   recogniser and text-to-speech (Android) or the Web Speech API (Chrome/Edge), so there are no API costs.
 - **Translate** (web and Android) shows a sentence's English translation and asks for the whole Spanish

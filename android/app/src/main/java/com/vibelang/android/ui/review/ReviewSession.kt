@@ -10,7 +10,7 @@ import com.vibelang.android.ui.practice.Spoken
 import com.vibelang.android.ui.practice.spokenAnswers
 import com.vibelang.android.ui.practice.Verdict
 
-/** Something to answer in Review: a word (type the translation) or a sentence (fill the gaps). */
+/** Something to answer in Review: a word (see the English, give the Spanish term) or a sentence (fill the gaps). */
 sealed interface ReviewItem {
     /** Unique across words and sentences, e.g. "v12" or "s4". */
     val key: String
@@ -22,7 +22,7 @@ sealed interface ReviewItem {
 
     data class Word(val vocabulary: Vocabulary, override val subjectTitle: String, override val box: Int) : ReviewItem {
         override val key get() = "v${vocabulary.id}"
-        override val expected get() = listOf(vocabulary.translation)
+        override val expected get() = listOf(vocabulary.term)
     }
 
     data class Gap(val sentence: Sentence, override val subjectTitle: String, override val box: Int) : ReviewItem {

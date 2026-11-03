@@ -9,12 +9,12 @@ import { Verdict, bestSpoken, checkAnswer, clozeGaps, displayAnswer, hasGap, sol
 import { ListenButton, MicButton, speechLang, useSpeech } from '../speech.jsx';
 import { DEFAULT_NEW_PER_DAY, SlowNote, currentZone, reportReview, thresholdMs, usePromptTimer } from '../reviews.jsx';
 
-/** Turns the API's due items into prompts: a word (type the translation) or a sentence (fill the gaps). */
+/** Turns the API's due items into prompts: a word (see the English, give the Spanish term) or a sentence (fill the gaps). */
 function toItems(due) {
   return due.items
     .map((d) =>
       d.type === 'VOCABULARY' && d.vocabulary
-        ? { key: `v${d.vocabulary.id}`, word: d.vocabulary, expected: [d.vocabulary.translation], ...d }
+        ? { key: `v${d.vocabulary.id}`, word: d.vocabulary, expected: [d.vocabulary.term], ...d }
         : d.type === 'SENTENCE' && d.sentence && hasGap(d.sentence.text)
           ? { key: `s${d.sentence.id}`, sentence: d.sentence, expected: clozeGaps(d.sentence.text), ...d }
           : null,
@@ -106,7 +106,7 @@ export default function ReviewPage() {
   };
 
   const checkSpoken = (transcripts) => {
-    if (verdicts || !current?.sentence) return;
+    if (verdicts || !current) return;
     const best = bestSpoken(expected, transcripts);
     if (!best) return;
     setHeard(best.heard);
@@ -166,7 +166,7 @@ export default function ReviewPage() {
             </div>
             {current.word ? (
               <p className="cloze-sentence">
-                <strong>{current.word.term}</strong>
+                <strong>{current.word.translation}</strong>
               </p>
             ) : (
               <>
@@ -179,16 +179,16 @@ export default function ReviewPage() {
             )}
           </div>
 
-          {!verdicts && current.sentence && (
+          {!verdicts && (
             <div className="speech-actions">
-              <MicButton speech={speech} onResult={checkSpoken} />
+              <MicButton speech={speech} onResult={checkSpoken} label={current.word ? 'Say it' : 'Say the sentence'} />
             </div>
           )}
 
           <div className="cloze-inputs">
             {expected.map((_, i) => (
               <label key={i} className="field">
-                <span>{current.word ? 'Translation' : expected.length === 1 ? 'Missing word(s)' : `Gap ${i + 1}`}</span>
+                <span>{current.word ? 'In Spanish' : expected.length === 1 ? 'Missing word(s)' : `Gap ${i + 1}`}</span>
                 <input
                   ref={i === 0 ? firstInput : undefined}
                   value={answers[i] ?? ''}

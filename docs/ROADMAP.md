@@ -160,9 +160,9 @@ order (subject `position`, then item `position`), so new material comes in gradu
 
 ## 2. Speaking mode
 
-> **Status: built.** Differences from the design below: the mic is only offered for **sentences** (Fill the gap
-> and sentence items in Review), because a word prompt shows the Spanish term and expects the English
-> translation, so a spoken word answer would be English. Spoken answers use the typed-answer time limit, timed
+> **Status: built.** Differences from the design below: word prompts (Practice and word items in Review) were
+> later flipped to show the English and expect the Spanish term, so the mic works for words as well as sentences.
+> Spoken answers use the typed-answer time limit, timed
 > until the recogniser returns, rather than a separate 4 s limit. There is no "Speak first" switch or "Listen &
 > repeat" button yet; 🔊 Listen and "Read answers aloud" are in. Numbers are not converted (avoid digits in
 > sentences for now).

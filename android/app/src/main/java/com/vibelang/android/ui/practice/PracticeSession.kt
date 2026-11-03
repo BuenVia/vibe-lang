@@ -4,10 +4,12 @@ import com.vibelang.android.data.Vocabulary
 import kotlin.random.Random
 
 /** The result of checking the current word, shown until the learner moves on. */
-data class Feedback(val answer: String, val verdict: Verdict, val responseMs: Long? = null)
+/** [heard] is what the speech recogniser heard when the answer was spoken, null when it was typed. */
+data class Feedback(val answer: String, val verdict: Verdict, val responseMs: Long? = null, val heard: String? = null)
 
 /**
- * Immutable state of a Practice (writing) run. The learner sees a term and types its translation.
+ * Immutable state of a Practice (writing) run. The learner sees the English translation and types (or says)
+ * the Spanish term.
  *
  * - [submit] checks the answer and shows [feedback] without moving on, so the learner can read the correction.
  * - [next] then removes a correct word from the queue, or moves a wrong one to the end of the queue so it comes
@@ -37,9 +39,20 @@ data class PracticeSession(
     fun submit(answer: String, responseMs: Long? = null): PracticeSession {
         val word = current ?: return this
         if (isChecked || answer.isBlank()) return this
-        val verdict = AnswerChecker.check(answer, word.translation)
+        val verdict = AnswerChecker.check(answer, word.term)
         return copy(
             feedback = Feedback(answer.trim(), verdict, responseMs),
+            missed = if (verdict.isCorrect) missed else missed + word.id,
+        )
+    }
+
+    /** A spoken answer, already graded by [Spoken.best] against the term. */
+    fun submitSpoken(result: Spoken.Result, responseMs: Long? = null): PracticeSession {
+        val word = current ?: return this
+        if (isChecked || result.verdicts.size != 1) return this
+        val verdict = result.verdicts.first()
+        return copy(
+            feedback = Feedback(result.heard, verdict, responseMs, result.heard),
             missed = if (verdict.isCorrect) missed else missed + word.id,
         )
     }

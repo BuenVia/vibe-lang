@@ -21,8 +21,9 @@ import org.junit.Test
 
 class ReviewSessionTest {
 
-    private fun word(id: Long, translation: String) =
-        DueItem(DueType.VOCABULARY, box = 1, subjectTitle = "S", vocabulary = Vocabulary(id, 1, "t$id", translation, position = 1))
+    /** Review shows a word's English and expects the Spanish term, so [term] is the answer. */
+    private fun word(id: Long, term: String) =
+        DueItem(DueType.VOCABULARY, box = 1, subjectTitle = "S", vocabulary = Vocabulary(id, 1, term, "en$id", position = 1))
 
     private fun sentence(id: Long, text: String) =
         DueItem(DueType.SENTENCE, box = 0, subjectTitle = "S", sentence = Sentence(id, 1, text, position = 1))

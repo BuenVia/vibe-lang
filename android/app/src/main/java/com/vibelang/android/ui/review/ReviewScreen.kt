@@ -150,10 +150,10 @@ class ReviewViewModel(
         }
     }
 
-    /** Grades a spoken answer to the current sentence and reports the first attempt as SPEAK. */
+    /** Grades a spoken answer to the current word or sentence and reports the first attempt as SPEAK. */
     fun submitSpoken(transcripts: List<String>, settings: Settings?) {
         val session = _session.value ?: return
-        val item = session.current as? ReviewItem.Gap ?: return
+        val item = session.current ?: return
         val firstAttempt = session.isFirstAttempt
         val result = Spoken.best(item.expected, transcripts) ?: return
         val ms = timer.elapsedMs()
@@ -163,8 +163,12 @@ class ReviewViewModel(
         if (firstAttempt) {
             val threshold = settings?.thresholdMs(AnswerKind.TYPED, item.expected.size)
             viewModelScope.launch {
-                reviews.report(ReviewMode.SPEAK, sentenceId = item.sentence.id, correct = result.isCorrect,
-                    responseMs = ms, thresholdMs = threshold)
+                when (item) {
+                    is ReviewItem.Word -> reviews.report(ReviewMode.SPEAK, vocabularyId = item.vocabulary.id,
+                        correct = result.isCorrect, responseMs = ms, thresholdMs = threshold)
+                    is ReviewItem.Gap -> reviews.report(ReviewMode.SPEAK, sentenceId = item.sentence.id,
+                        correct = result.isCorrect, responseMs = ms, thresholdMs = threshold)
+                }
             }
         }
     }
@@ -191,7 +195,7 @@ fun ReviewScreen(appVm: AppViewModel, onBack: () -> Unit) {
     LaunchedEffect(data) { data?.let { vm.startIfNeeded(it) } }
 
     val locale = Spoken.locale(course?.language)
-    val speech = rememberSpeechInput(locale, "Say the whole sentence") { vm.submitSpoken(it, settings) }
+    val speech = rememberSpeechInput(locale, "Say it in Spanish") { vm.submitSpoken(it, settings) }
     val speaker = rememberSpeaker(locale)
 
     Scaffold(
@@ -313,7 +317,7 @@ private fun ReviewRun(
                 ) {
                     when (item) {
                         is ReviewItem.Word -> Text(
-                            item.vocabulary.term,
+                            item.vocabulary.translation,
                             style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.SemiBold,
                             textAlign = TextAlign.Center,
@@ -355,7 +359,7 @@ private fun ReviewRun(
                     label = {
                         Text(
                             when {
-                                item is ReviewItem.Word -> "Translation"
+                                item is ReviewItem.Word -> "In Spanish"
                                 expected.size == 1 -> "Missing word(s)"
                                 else -> "Gap ${i + 1}"
                             },
@@ -376,9 +380,9 @@ private fun ReviewRun(
             }
         }
 
-        if (feedback == null && item is ReviewItem.Gap) {
+        if (feedback == null) {
             Spacer(Modifier.height(12.dp))
-            MicButton(speech, "Say the sentence", width)
+            MicButton(speech, if (item is ReviewItem.Word) "Say it" else "Say the sentence", width)
         }
 
         feedback?.let {
@@ -386,7 +390,7 @@ private fun ReviewRun(
             when (item) {
                 is ReviewItem.Word -> FeedbackCard(
                     item.vocabulary,
-                    Feedback(it.answers.first(), it.verdicts.first(), it.responseMs),
+                    Feedback(it.heard ?: it.answers.first(), it.verdicts.first(), it.responseMs, it.heard),
                     threshold,
                     width,
                 ) { ListenButton(speaker, spanish) }

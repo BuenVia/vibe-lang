@@ -66,7 +66,10 @@ import com.vibelang.android.ui.UiState
 import com.vibelang.android.ui.appViewModel
 import com.vibelang.android.ui.components.EmptyState
 import com.vibelang.android.ui.components.ListenButton
+import com.vibelang.android.ui.components.MicButton
 import com.vibelang.android.ui.components.Speaker
+import com.vibelang.android.ui.components.SpeechInput
+import com.vibelang.android.ui.components.rememberSpeechInput
 import com.vibelang.android.ui.components.rememberSpeaker
 import com.vibelang.android.ui.components.StateContent
 import com.vibelang.android.ui.theme.LocalExtraColors
@@ -121,13 +124,30 @@ class PracticeViewModel(
         }
     }
 
+    /** Grades the recogniser's guesses against the term and reports the first attempt as SPEAK. */
+    fun submitSpoken(transcripts: List<String>, thresholdMs: Int?) {
+        val session = _session.value ?: return
+        val word = session.current ?: return
+        val result = Spoken.best(listOf(word.term), transcripts) ?: return
+        val ms = timer.elapsedMs()
+        val checked = session.submitSpoken(result, ms)
+        if (checked === session) return
+        _session.value = checked
+        if (timer.firstAttempt("v${word.id}")) {
+            viewModelScope.launch {
+                reviews.report(ReviewMode.SPEAK, vocabularyId = word.id, correct = result.isCorrect,
+                    responseMs = ms, thresholdMs = thresholdMs)
+            }
+        }
+    }
+
     fun next() {
         _session.value?.let { _session.value = it.next() }
         timer.restart()
     }
 }
 
-/** Practice by writing: the learner sees each term and types its translation. */
+/** Practice by writing: the learner sees each word's English translation and types (or says) the Spanish term. */
 @Composable
 fun PracticeScreen(subjectId: Long, appVm: AppViewModel, onBack: () -> Unit) {
     val vm = appViewModel { PracticeViewModel(it.api, it.reviews) }
@@ -140,7 +160,11 @@ fun PracticeScreen(subjectId: Long, appVm: AppViewModel, onBack: () -> Unit) {
     val data = (state as? UiState.Ready)?.data
 
     LaunchedEffect(data) { data?.let { vm.startIfNeeded(it.vocabulary, shuffle) } }
-    val speaker = rememberSpeaker(Spoken.locale(appVm.courseLanguage(data?.subject?.courseId)))
+    val locale = Spoken.locale(appVm.courseLanguage(data?.subject?.courseId))
+    val speaker = rememberSpeaker(locale)
+    val speech = rememberSpeechInput(locale, "Say it in Spanish") {
+        vm.submitSpoken(it, settings?.thresholdMs(AnswerKind.TYPED))
+    }
 
     Scaffold(
         topBar = {
@@ -192,6 +216,7 @@ fun PracticeScreen(subjectId: Long, appVm: AppViewModel, onBack: () -> Unit) {
                             session = s,
                             thresholdMs = threshold,
                             speaker = speaker,
+                            speech = speech,
                             readAloud = settings?.readAloud == true,
                             onSubmit = { vm.submit(it, threshold) },
                             onNext = vm::next,
@@ -208,6 +233,7 @@ private fun WritingRun(
     session: PracticeSession,
     thresholdMs: Int?,
     speaker: Speaker,
+    speech: SpeechInput,
     readAloud: Boolean,
     onSubmit: (String) -> Unit,
     onNext: () -> Unit,
@@ -249,7 +275,7 @@ private fun WritingRun(
         ) {
             Box(Modifier.fillMaxWidth().heightIn(min = 160.dp).padding(24.dp), contentAlignment = Alignment.Center) {
                 Text(
-                    word.term,
+                    word.translation,
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.SemiBold,
                     textAlign = TextAlign.Center,
@@ -262,7 +288,7 @@ private fun WritingRun(
             value = answer,
             onValueChange = { if (feedback == null) answer = it },
             readOnly = feedback != null,
-            label = { Text("Translation") },
+            label = { Text("In Spanish") },
             singleLine = true,
             keyboardOptions = KeyboardOptions(
                 capitalization = KeyboardCapitalization.None,
@@ -272,6 +298,11 @@ private fun WritingRun(
             keyboardActions = KeyboardActions(onAny = { if (feedback != null || answer.isNotBlank()) submitOrNext() }),
             modifier = width.focusRequester(focus),
         )
+
+        if (feedback == null) {
+            Spacer(Modifier.height(12.dp))
+            MicButton(speech, "Say it", width)
+        }
 
         feedback?.let {
             Spacer(Modifier.height(16.dp))
@@ -313,10 +344,11 @@ internal fun FeedbackCard(
             )
             if (correct) SlowNote(feedback.responseMs, thresholdMs)
             if (feedback.verdict != Verdict.CORRECT) {
-                Text("Answer: ${word.translation}", style = MaterialTheme.typography.bodyLarge)
+                Text("Answer: ${word.term}", style = MaterialTheme.typography.bodyLarge)
             }
+            feedback.heard?.let { Text("Heard: \"$it\"", style = MaterialTheme.typography.bodyMedium, fontStyle = FontStyle.Italic) }
             if (!correct) {
-                Text("You wrote: ${feedback.answer}", style = MaterialTheme.typography.bodyMedium)
+                if (feedback.heard == null) Text("You wrote: ${feedback.answer}", style = MaterialTheme.typography.bodyMedium)
                 Text(
                     "This word will come back at the end.",
                     style = MaterialTheme.typography.bodySmall,
@@ -358,7 +390,7 @@ private fun Summary(
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text("Words to review", style = MaterialTheme.typography.titleSmall)
                     missedWords.forEach {
-                        Text("${it.term} → ${it.translation}", style = MaterialTheme.typography.bodyMedium)
+                        Text("${it.translation} → ${it.term}", style = MaterialTheme.typography.bodyMedium)
                     }
                 }
             }
