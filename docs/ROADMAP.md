@@ -12,11 +12,11 @@ No AI or paid APIs: everything runs on the server's own logic or on free on-devi
 | # | Feature | Main goal | Depends on |
 |---|---|---|---|
 | 1 | Spaced repetition with a speed rule (**done**) | B | — |
-| 2 | Speaking mode (speech input + text-to-speech) | B | — |
+| 2 | Speaking mode (speech input + text-to-speech) (**done**) | B | — |
 | 3 | Full-sentence translation with diff and self-grading | A, B (writing) | — |
 | 4 | Mistakes log | A | 3 (reuses the diff) |
 
-Suggested order: **1 → 2 → 3 → 4**. Section 1 is built; the next one is speaking mode (§2).
+Suggested order: **1 → 2 → 3 → 4**. Sections 1 and 2 are built; the next one is full-sentence translation (§3).
 
 ## Context for a future session
 
@@ -159,6 +159,13 @@ order (subject `position`, then item `position`), so new material comes in gradu
 ---
 
 ## 2. Speaking mode
+
+> **Status: built.** Differences from the design below: the mic is only offered for **sentences** (Fill the gap
+> and sentence items in Review), because a word prompt shows the Spanish term and expects the English
+> translation, so a spoken word answer would be English. Spoken answers use the typed-answer time limit, timed
+> until the recogniser returns, rather than a separate 4 s limit. There is no "Speak first" switch or "Listen &
+> repeat" button yet; 🔊 Listen and "Read answers aloud" are in. Numbers are not converted (avoid digits in
+> sentences for now).
 
 ### Why
 

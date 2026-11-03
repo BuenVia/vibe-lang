@@ -64,6 +64,7 @@ import com.vibelang.android.data.PromptTimer
 import com.vibelang.android.data.ReviewMode
 import com.vibelang.android.data.ReviewReporter
 import com.vibelang.android.data.Sentence
+import com.vibelang.android.data.Settings
 import com.vibelang.android.data.Subject
 import com.vibelang.android.data.VibeLangApi
 import com.vibelang.android.ui.AppViewModel
@@ -71,6 +72,12 @@ import com.vibelang.android.ui.LoadViewModel
 import com.vibelang.android.ui.UiState
 import com.vibelang.android.ui.appViewModel
 import com.vibelang.android.ui.components.EmptyState
+import com.vibelang.android.ui.components.ListenButton
+import com.vibelang.android.ui.components.MicButton
+import com.vibelang.android.ui.components.Speaker
+import com.vibelang.android.ui.components.SpeechInput
+import com.vibelang.android.ui.components.rememberSpeaker
+import com.vibelang.android.ui.components.rememberSpeechInput
 import com.vibelang.android.ui.components.StateContent
 import com.vibelang.android.ui.theme.LocalExtraColors
 import kotlinx.coroutines.async
@@ -124,6 +131,24 @@ class ClozeViewModel(
         }
     }
 
+    /** Grades the recogniser's guesses for the current sentence and reports the first attempt as SPEAK. */
+    fun submitSpoken(transcripts: List<String>, settings: Settings?) {
+        val session = _session.value ?: return
+        val sentence = session.current ?: return
+        val result = Spoken.best(session.currentGaps, transcripts) ?: return
+        val ms = timer.elapsedMs()
+        val checked = session.submitSpoken(result, ms)
+        if (checked === session) return
+        _session.value = checked
+        if (timer.firstAttempt("s${sentence.id}")) {
+            val threshold = settings?.thresholdMs(AnswerKind.TYPED, session.currentGaps.size)
+            viewModelScope.launch {
+                reviews.report(ReviewMode.SPEAK, sentenceId = sentence.id, correct = result.isCorrect,
+                    responseMs = ms, thresholdMs = threshold)
+            }
+        }
+    }
+
     fun next() {
         _session.value?.let { _session.value = it.next() }
         timer.restart()
@@ -143,6 +168,10 @@ fun ClozeScreen(subjectId: Long, appVm: AppViewModel, onBack: () -> Unit) {
     val data = (state as? UiState.Ready)?.data
 
     LaunchedEffect(data) { data?.let { vm.startIfNeeded(it.sentences, shuffle) } }
+
+    val locale = Spoken.locale(appVm.courseLanguage(data?.subject?.courseId))
+    val speech = rememberSpeechInput(locale, "Say the whole sentence") { vm.submitSpoken(it, settings) }
+    val speaker = rememberSpeaker(locale)
 
     Scaffold(
         topBar = {
@@ -190,7 +219,15 @@ fun ClozeScreen(subjectId: Long, appVm: AppViewModel, onBack: () -> Unit) {
                     )
                     else -> {
                         val threshold = settings?.thresholdMs(AnswerKind.TYPED, s.currentGaps.size)
-                        ClozeRun(session = s, thresholdMs = threshold, onSubmit = { vm.submit(it, threshold) }, onNext = vm::next)
+                        ClozeRun(
+                            session = s,
+                            thresholdMs = threshold,
+                            speech = speech,
+                            speaker = speaker,
+                            readAloud = settings?.readAloud == true,
+                            onSubmit = { vm.submit(it, threshold) },
+                            onNext = vm::next,
+                        )
                     }
                 }
             }
@@ -202,6 +239,9 @@ fun ClozeScreen(subjectId: Long, appVm: AppViewModel, onBack: () -> Unit) {
 private fun ClozeRun(
     session: ClozeSession,
     thresholdMs: Int?,
+    speech: SpeechInput,
+    speaker: Speaker,
+    readAloud: Boolean,
     onSubmit: (List<String>) -> Unit,
     onNext: () -> Unit,
 ) {
@@ -215,6 +255,10 @@ private fun ClozeRun(
 
     val complete = answers.size == gaps.size && answers.all { it.isNotBlank() }
     val submitOrNext = { if (feedback == null) onSubmit(answers) else onNext() }
+    // A spoken answer fills the fields with what was recognised as right.
+    LaunchedEffect(feedback?.heard) { feedback?.takeIf { it.heard != null }?.let { answers = it.answers } }
+    // Read the full sentence aloud after checking, when that setting is on.
+    LaunchedEffect(feedback != null) { if (feedback != null && readAloud) speaker.speak(Cloze.solved(sentence.text)) }
 
     Column(
         Modifier
@@ -296,9 +340,16 @@ private fun ClozeRun(
             }
         }
 
+        if (feedback == null) {
+            Spacer(Modifier.height(12.dp))
+            MicButton(speech, "Say the sentence", width)
+        }
+
         feedback?.let {
             Spacer(Modifier.height(16.dp))
-            ClozeFeedbackCard(sentence, gaps, it, thresholdMs, width)
+            ClozeFeedbackCard(sentence, gaps, it, thresholdMs, width) {
+                ListenButton(speaker, Cloze.solved(sentence.text))
+            }
         }
 
         Spacer(Modifier.height(20.dp))
@@ -347,6 +398,7 @@ internal fun ClozeFeedbackCard(
     feedback: ClozeFeedback,
     thresholdMs: Int?,
     modifier: Modifier,
+    actions: @Composable () -> Unit = {},
 ) {
     val extra = LocalExtraColors.current
     val correct = feedback.isCorrect
@@ -366,11 +418,13 @@ internal fun ClozeFeedbackCard(
                 fontWeight = FontWeight.SemiBold,
             )
             if (correct) SlowNote(feedback.responseMs, thresholdMs)
+            feedback.heard?.let { Text("Heard: \"$it\"", style = MaterialTheme.typography.bodyMedium, fontStyle = FontStyle.Italic) }
             gaps.forEachIndexed { i, expected ->
                 val verdict = feedback.verdicts[i]
                 if (verdict != Verdict.CORRECT) {
                     val label = if (gaps.size > 1) "Gap ${i + 1}: " else ""
-                    Text("${label}you wrote \"${feedback.answers[i]}\" → ${Cloze.display(expected)}", style = MaterialTheme.typography.bodyLarge)
+                    val given = if (feedback.heard != null) "" else "you wrote \"${feedback.answers[i]}\" → "
+                    Text("$label$given${Cloze.display(expected)}", style = MaterialTheme.typography.bodyLarge)
                 }
             }
             if (!correct) {
@@ -379,6 +433,7 @@ internal fun ClozeFeedbackCard(
             sentence.explanation?.let {
                 Text(it, style = MaterialTheme.typography.bodyMedium, fontStyle = FontStyle.Italic)
             }
+            actions()
         }
     }
 }

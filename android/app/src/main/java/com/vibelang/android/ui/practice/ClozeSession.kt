@@ -4,7 +4,13 @@ import com.vibelang.android.data.Sentence
 import kotlin.random.Random
 
 /** The result of checking every gap of the current sentence, shown until the learner moves on. */
-data class ClozeFeedback(val answers: List<String>, val verdicts: List<Verdict>, val responseMs: Long? = null) {
+/** [heard] is what the speech recogniser heard when the answer was spoken, null when it was typed. */
+data class ClozeFeedback(
+    val answers: List<String>,
+    val verdicts: List<Verdict>,
+    val responseMs: Long? = null,
+    val heard: String? = null,
+) {
     val isCorrect: Boolean get() = verdicts.all { it.isCorrect }
 }
 
@@ -44,6 +50,14 @@ data class ClozeSession(
         return copy(feedback = result, missed = if (result.isCorrect) missed else missed + sentence.id)
     }
 
+    /** A spoken answer, already graded by [Spoken.best]. */
+    fun submitSpoken(result: Spoken.Result, responseMs: Long? = null): ClozeSession {
+        val sentence = current ?: return this
+        if (isChecked || result.verdicts.size != currentGaps.size) return this
+        val feedback = ClozeFeedback(spokenAnswers(currentGaps, result), result.verdicts, responseMs, result.heard)
+        return copy(feedback = feedback, missed = if (feedback.isCorrect) missed else missed + sentence.id)
+    }
+
     fun next(): ClozeSession {
         val sentence = current ?: return this
         val result = feedback ?: return this
@@ -66,3 +80,7 @@ data class ClozeSession(
         }
     }
 }
+
+/** What goes in each field after a spoken answer: the expected form for a right gap, nothing for a wrong one. */
+internal fun spokenAnswers(gaps: List<String>, result: Spoken.Result): List<String> =
+    gaps.zip(result.verdicts) { gap, verdict -> if (verdict.isCorrect) gap.split('/').first().trim() else "" }

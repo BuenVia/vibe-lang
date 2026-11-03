@@ -10,6 +10,7 @@ const DEFAULTS = {
   speedRule: true, // spaced repetition: only promote answers given within the time limit
   answerSeconds: 5, // time limit for a typed answer with one gap
   newPerDay: 10, // new items Review introduces per day
+  readAloud: false, // read the Spanish answer aloud after each Check
 };
 
 function loadSettings() {

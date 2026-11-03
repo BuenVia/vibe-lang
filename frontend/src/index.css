@@ -195,3 +195,8 @@ label.radio input, label.checkbox input { width: auto; margin-top: 0.3rem; }
 .subject-progress { display: flex; flex-direction: column; gap: 0.2rem; margin-top: 0.4rem; }
 .subject-progress .progress { display: block; height: 4px; }
 .subject-progress .progress-bar { display: block; }
+
+/* Speaking */
+.speech-actions { display: flex; justify-content: center; margin-bottom: 1rem; }
+button.mic { padding: 0.6rem 1.2rem; border-radius: 999px; }
+button.listen { padding: 0.25rem 0.7rem; margin-top: 0.25rem; }

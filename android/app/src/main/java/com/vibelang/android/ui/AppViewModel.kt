@@ -80,6 +80,12 @@ class AppViewModel(
     fun setSpeedRule(on: Boolean) = viewModelScope.launch { repository.setSpeedRule(on) }
     fun setAnswerSeconds(seconds: Int) = viewModelScope.launch { repository.setAnswerSeconds(seconds) }
     fun setNewPerDay(count: Int) = viewModelScope.launch { repository.setNewPerDay(count) }
+    fun setReadAloud(on: Boolean) = viewModelScope.launch { repository.setReadAloud(on) }
+
+    /** The language of a course, for speech recognition and text-to-speech. */
+    fun courseLanguage(courseId: Long?): String? =
+        (courses.value as? UiState.Ready)?.data?.firstOrNull { it.id == courseId }?.language
+            ?: selectedCourse.value?.language
 
     // Course admin
 

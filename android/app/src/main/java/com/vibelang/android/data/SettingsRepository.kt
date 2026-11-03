@@ -27,6 +27,8 @@ data class Settings(
     val answerSeconds: Int = DEFAULT_ANSWER_SECONDS,
     /** How many never-reviewed items Review introduces per day. */
     val newPerDay: Int = DEFAULT_NEW_PER_DAY,
+    /** Read the Spanish answer aloud after each Check. */
+    val readAloud: Boolean = false,
 ) {
     val isAdmin: Boolean get() = mode == Mode.ADMIN
 
@@ -63,6 +65,7 @@ class SettingsRepository(private val context: Context) {
         val speedRule = booleanPreferencesKey("speedRule")
         val answerSeconds = intPreferencesKey("answerSeconds")
         val newPerDay = intPreferencesKey("newPerDay")
+        val readAloud = booleanPreferencesKey("readAloud")
     }
 
     val settings: Flow<Settings> = context.dataStore.data.map { p ->
@@ -75,6 +78,7 @@ class SettingsRepository(private val context: Context) {
             speedRule = p[Keys.speedRule] ?: true,
             answerSeconds = p[Keys.answerSeconds] ?: Settings.DEFAULT_ANSWER_SECONDS,
             newPerDay = p[Keys.newPerDay] ?: Settings.DEFAULT_NEW_PER_DAY,
+            readAloud = p[Keys.readAloud] ?: false,
         )
     }
 
@@ -93,4 +97,6 @@ class SettingsRepository(private val context: Context) {
     suspend fun setAnswerSeconds(seconds: Int) = context.dataStore.edit { it[Keys.answerSeconds] = seconds }
 
     suspend fun setNewPerDay(count: Int) = context.dataStore.edit { it[Keys.newPerDay] = count }
+
+    suspend fun setReadAloud(on: Boolean) = context.dataStore.edit { it[Keys.readAloud] = on }
 }

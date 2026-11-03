@@ -4,7 +4,17 @@ import { api } from '../api.js';
 import { useSettings } from '../context/SettingsContext.jsx';
 import { useLoad } from '../useLoad.js';
 import { ErrorMessage, Loading } from '../components/Status.jsx';
-import { Verdict, checkAnswer, clozeGaps, displayAnswer, hasGap, solvedSentence } from '../cloze.js';
+import {
+  Verdict,
+  bestSpoken,
+  checkAnswer,
+  clozeGaps,
+  displayAnswer,
+  hasGap,
+  solvedSentence,
+  spokenAnswers,
+} from '../cloze.js';
+import { ListenButton, MicButton, speechLang, useSpeech } from '../speech.jsx';
 import { ClozeSentence } from '../components/ClozeText.jsx';
 import { SlowNote, reportReview, thresholdMs, usePromptTimer } from '../reviews.jsx';
 
@@ -23,7 +33,7 @@ function shuffle(list) {
  */
 export default function ClozePage() {
   const { id } = useParams();
-  const { settings } = useSettings();
+  const { settings, courses } = useSettings();
   const { data, error, loading } = useLoad(async () => {
     const [subject, sentences] = await Promise.all([api.subjects.get(id), api.sentences.list(id)]);
     return { subject, sentences };
@@ -36,7 +46,10 @@ export default function ClozePage() {
   const [verdicts, setVerdicts] = useState(null); // null until the current sentence is checked
   const [step, setStep] = useState(0); // increases on every new prompt, so the fields reset
   const [responseMs, setResponseMs] = useState(null);
+  const [heard, setHeard] = useState(null); // what the recogniser heard, for a spoken answer
   const timer = usePromptTimer();
+  const language = courses.find((c) => c.id === data?.subject.courseId)?.language;
+  const speech = useSpeech(speechLang(language));
   const firstInput = useRef(null);
 
   const start = useCallback(
@@ -75,18 +88,35 @@ export default function ClozePage() {
     if (!complete || verdicts) return;
     const ms = timer.elapsedMs();
     const result = gaps.map((expected, i) => checkAnswer(answers[i], expected));
+    setHeard(null);
+    finishCheck(result, ms, 'CLOZE');
+  };
+
+  /** Shared by typed and spoken answers. */
+  const finishCheck = (result, ms, mode) => {
     const ok = result.every((v) => v !== Verdict.INCORRECT);
     setVerdicts(result);
     setResponseMs(ms);
     if (!ok) setMissed((m) => new Set(m).add(current.id));
     if (timer.firstAttempt(`s${current.id}`)) {
-      reportReview({ mode: 'CLOZE', sentenceId: current.id, correct: ok, responseMs: ms, thresholdMs: limit });
+      reportReview({ mode, sentenceId: current.id, correct: ok, responseMs: ms, thresholdMs: limit });
     }
+    if (settings.readAloud) speech.speak(solvedSentence(current.text));
+  };
+
+  const checkSpoken = (transcripts) => {
+    if (verdicts || !current) return;
+    const best = bestSpoken(gaps, transcripts);
+    if (!best) return;
+    setHeard(best.heard);
+    setAnswers(spokenAnswers(gaps, best.verdicts));
+    finishCheck(best.verdicts, timer.elapsedMs(), 'SPEAK');
   };
 
   const next = () => {
     setQueue((q) => (correct ? q.slice(1) : [...q.slice(1), q[0]]));
     setVerdicts(null);
+    setHeard(null);
     setStep((n) => n + 1);
     timer.restart();
   };
@@ -134,6 +164,12 @@ export default function ClozePage() {
             {current.hint && <p className="cloze-hint">({current.hint})</p>}
           </div>
 
+          {!verdicts && (
+            <div className="speech-actions">
+              <MicButton speech={speech} onResult={checkSpoken} />
+            </div>
+          )}
+
           <div className="cloze-inputs">
             {gaps.map((_, i) => (
               <label key={i} className="field">
@@ -161,16 +197,22 @@ export default function ClozePage() {
                     : 'Correct!'}
               </strong>
               {correct && <SlowNote ms={responseMs} threshold={limit} />}
+              {heard && <div className="cloze-explanation">Heard: “{heard}”</div>}
               {gaps.map(
                 (expected, i) =>
                   verdicts[i] !== Verdict.CORRECT && (
                     <div key={i}>
-                      {gaps.length > 1 && `Gap ${i + 1}: `}you wrote “{answers[i].trim()}” → {displayAnswer(expected)}
+                      {gaps.length > 1 && `Gap ${i + 1}: `}
+                      {heard ? '' : `you wrote “${answers[i].trim()}” → `}
+                      {displayAnswer(expected)}
                     </div>
                   ),
               )}
               {!correct && <div className="small">This sentence will come back at the end.</div>}
               {current.explanation && <div className="cloze-explanation">{current.explanation}</div>}
+              <div>
+                <ListenButton speech={speech} text={solvedSentence(current.text)} />
+              </div>
             </div>
           )}
 

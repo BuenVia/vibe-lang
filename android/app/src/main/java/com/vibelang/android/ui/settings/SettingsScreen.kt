@@ -160,6 +160,32 @@ fun SettingsScreen(appVm: AppViewModel) {
                 )
             }
 
+            Section("Speaking") {
+                Text(
+                    "Fill the gap and the sentences in Review have a 🎤 button: say the whole sentence and the gaps " +
+                        "are checked against what was heard. 🔊 reads the Spanish aloud.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .toggleable(value = s.readAloud, role = Role.Switch, onValueChange = { appVm.setReadAloud(it) })
+                        .padding(vertical = 8.dp),
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Read answers aloud", style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            "After each Check, hear the correct Spanish.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(checked = s.readAloud, onCheckedChange = null)
+                }
+            }
+
             Section("About") {
                 Text("Server: ${BuildConfig.API_BASE_URL}", style = MaterialTheme.typography.bodySmall)
                 Text(

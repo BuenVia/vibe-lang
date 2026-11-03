@@ -6,6 +6,8 @@ import com.vibelang.android.data.Sentence
 import com.vibelang.android.data.Vocabulary
 import com.vibelang.android.ui.practice.AnswerChecker
 import com.vibelang.android.ui.practice.Cloze
+import com.vibelang.android.ui.practice.Spoken
+import com.vibelang.android.ui.practice.spokenAnswers
 import com.vibelang.android.ui.practice.Verdict
 
 /** Something to answer in Review: a word (type the translation) or a sentence (fill the gaps). */
@@ -37,7 +39,12 @@ sealed interface ReviewItem {
     }
 }
 
-data class ReviewFeedback(val answers: List<String>, val verdicts: List<Verdict>, val responseMs: Long? = null) {
+data class ReviewFeedback(
+    val answers: List<String>,
+    val verdicts: List<Verdict>,
+    val responseMs: Long? = null,
+    val heard: String? = null,
+) {
     val isCorrect: Boolean get() = verdicts.all { it.isCorrect }
 }
 
@@ -75,6 +82,14 @@ data class ReviewSession(
             responseMs = responseMs,
         )
         return copy(feedback = result, missed = if (result.isCorrect) missed else missed + item.key)
+    }
+
+    /** A spoken answer, already graded by [Spoken.best]. */
+    fun submitSpoken(result: Spoken.Result, responseMs: Long? = null): ReviewSession {
+        val item = current ?: return this
+        if (feedback != null || result.verdicts.size != item.expected.size) return this
+        val fb = ReviewFeedback(spokenAnswers(item.expected, result), result.verdicts, responseMs, result.heard)
+        return copy(feedback = fb, missed = if (fb.isCorrect) missed else missed + item.key)
     }
 
     fun next(): ReviewSession {

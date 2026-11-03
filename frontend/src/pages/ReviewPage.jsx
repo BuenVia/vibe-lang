@@ -5,7 +5,8 @@ import { courseLabel, useSettings } from '../context/SettingsContext.jsx';
 import { useLoad } from '../useLoad.js';
 import { ErrorMessage, Loading, NoCourse } from '../components/Status.jsx';
 import { ClozeSentence } from '../components/ClozeText.jsx';
-import { Verdict, checkAnswer, clozeGaps, displayAnswer, hasGap } from '../cloze.js';
+import { Verdict, bestSpoken, checkAnswer, clozeGaps, displayAnswer, hasGap, solvedSentence, spokenAnswers } from '../cloze.js';
+import { ListenButton, MicButton, speechLang, useSpeech } from '../speech.jsx';
 import { DEFAULT_NEW_PER_DAY, SlowNote, currentZone, reportReview, thresholdMs, usePromptTimer } from '../reviews.jsx';
 
 /** Turns the API's due items into prompts: a word (type the translation) or a sentence (fill the gaps). */
@@ -42,7 +43,9 @@ export default function ReviewPage() {
   const [verdicts, setVerdicts] = useState(null);
   const [responseMs, setResponseMs] = useState(null);
   const [step, setStep] = useState(0);
+  const [heard, setHeard] = useState(null);
   const timer = usePromptTimer();
+  const speech = useSpeech(speechLang(course?.language));
   const firstInput = useRef(null);
 
   const start = useCallback((d) => {
@@ -73,17 +76,18 @@ export default function ReviewPage() {
   const complete = answers.length === expected.length && answers.every((a) => a.trim());
   const correct = verdicts?.every((v) => v !== Verdict.INCORRECT);
 
-  const check = () => {
-    if (!complete || verdicts) return;
-    const ms = timer.elapsedMs();
-    const result = expected.map((e, i) => checkAnswer(answers[i], e));
+  // The Spanish side: the term for a word, the full sentence for a gap.
+  const spanish = current ? (current.word ? current.word.term : solvedSentence(current.sentence.text)) : '';
+
+  /** Shared by typed and spoken answers. */
+  const finishCheck = (result, ms, mode) => {
     const ok = result.every((v) => v !== Verdict.INCORRECT);
     setVerdicts(result);
     setResponseMs(ms);
     if (!ok) setMissed((m) => new Set(m).add(current.key));
     if (timer.firstAttempt(current.key)) {
       reportReview({
-        mode: 'REVIEW',
+        mode,
         vocabularyId: current.word?.id ?? null,
         sentenceId: current.sentence?.id ?? null,
         correct: ok,
@@ -91,11 +95,29 @@ export default function ReviewPage() {
         thresholdMs: limit,
       });
     }
+    if (settings.readAloud) speech.speak(spanish);
+  };
+
+  const check = () => {
+    if (!complete || verdicts) return;
+    const ms = timer.elapsedMs();
+    setHeard(null);
+    finishCheck(expected.map((e, i) => checkAnswer(answers[i], e)), ms, 'REVIEW');
+  };
+
+  const checkSpoken = (transcripts) => {
+    if (verdicts || !current?.sentence) return;
+    const best = bestSpoken(expected, transcripts);
+    if (!best) return;
+    setHeard(best.heard);
+    setAnswers(spokenAnswers(expected, best.verdicts));
+    finishCheck(best.verdicts, timer.elapsedMs(), 'SPEAK');
   };
 
   const next = () => {
     setQueue((q) => (correct ? q.slice(1) : [...q.slice(1), q[0]]));
     setVerdicts(null);
+    setHeard(null);
     setStep((n) => n + 1);
     timer.restart();
   };
@@ -157,6 +179,12 @@ export default function ReviewPage() {
             )}
           </div>
 
+          {!verdicts && current.sentence && (
+            <div className="speech-actions">
+              <MicButton speech={speech} onResult={checkSpoken} />
+            </div>
+          )}
+
           <div className="cloze-inputs">
             {expected.map((_, i) => (
               <label key={i} className="field">
@@ -180,11 +208,14 @@ export default function ReviewPage() {
                 {!correct ? 'Not quite' : verdicts.includes(Verdict.ACCENTS) ? 'Correct, but watch the accents' : 'Correct!'}
               </strong>
               {correct && <SlowNote ms={responseMs} threshold={limit} />}
+              {heard && <div className="cloze-explanation">Heard: “{heard}”</div>}
               {expected.map(
                 (e, i) =>
                   verdicts[i] !== Verdict.CORRECT && (
                     <div key={i}>
-                      {expected.length > 1 && `Gap ${i + 1}: `}you wrote “{answers[i].trim()}” → {displayAnswer(e)}
+                      {expected.length > 1 && `Gap ${i + 1}: `}
+                      {heard ? '' : `you wrote “${answers[i].trim()}” → `}
+                      {displayAnswer(e)}
                     </div>
                   ),
               )}
@@ -192,6 +223,9 @@ export default function ReviewPage() {
               {(current.word?.notes || current.sentence?.explanation) && (
                 <div className="cloze-explanation">{current.word?.notes ?? current.sentence.explanation}</div>
               )}
+              <div>
+                <ListenButton speech={speech} text={spanish} />
+              </div>
             </div>
           )}
 

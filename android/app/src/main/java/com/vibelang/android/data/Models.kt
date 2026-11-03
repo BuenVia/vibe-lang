@@ -72,7 +72,7 @@ data class Sentence(
 // Spaced repetition. Timestamps are ISO-8601 strings.
 
 @Serializable
-enum class ReviewMode { STUDY, PRACTICE, CLOZE, REVIEW }
+enum class ReviewMode { STUDY, PRACTICE, CLOZE, REVIEW, SPEAK }
 
 @Serializable
 enum class ReviewOutcome { PROMOTED, SLOW, SAME_DAY, LAPSED }

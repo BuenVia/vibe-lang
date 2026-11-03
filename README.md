@@ -67,6 +67,10 @@ Vite proxies `/api` to the backend.
   given within the time limit (5 s for a typed answer by default, 3 s to flip a flashcard). The learning path
   shows "Today's review" (due and new items) and a progress bar per subject. The time limit, the speed rule and
   the number of new items per day are in Settings.
+- **Speaking** (web and Android): in Fill the gap and for sentences in Review, 🎤 lets you say the whole sentence
+  instead of typing. Each gap is checked against what the recogniser heard (filler words are ignored). 🔊 reads the
+  Spanish aloud, and "Read answers aloud" in Settings does it after every Check. It uses the device's own speech
+  recogniser and text-to-speech (Android) or the Web Speech API (Chrome/Edge), so there are no API costs.
 - **Admin mode** is turned on in **Settings**. It adds an *Admin* section where you create, edit, delete and
   reorder courses, categories and subjects. It also adds editors on each subject page: a Markdown lesson editor
   with live preview, inline vocabulary editing with bulk import (`term | translation | notes`, one per line), and
@@ -79,7 +83,7 @@ admin mode only hides the editing features and does not protect them.
 
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md): deploying the database to Supabase and the API and web app to Render
 - [docs/ANDROID_API_GUIDE.md](docs/ANDROID_API_GUIDE.md): app purpose and full API reference for a Kotlin/Android client
-- [docs/ROADMAP.md](docs/ROADMAP.md): designs for the learning features (spaced repetition is done; speaking mode,
+- [docs/ROADMAP.md](docs/ROADMAP.md): designs for the learning features (spaced repetition and speaking are done;
   sentence translation and a mistakes log are next)
 
 ## API

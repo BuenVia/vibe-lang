@@ -305,7 +305,7 @@ Treat `404` on `GET` as "no lesson yet", not as an error. You can avoid the requ
 | `GET` | `/api/courses/{courseId}/progress?zone=Europe/Madrid` | — | `200` `SubjectProgress[]` · `404` |
 
 ```json
-// ReviewRequest: exactly one of vocabularyId / sentenceId. mode: STUDY | PRACTICE | CLOZE | REVIEW.
+// ReviewRequest: exactly one of vocabularyId / sentenceId. mode: STUDY | PRACTICE | CLOZE | REVIEW | SPEAK.
 // thresholdMs is the speed limit the client applied (omit or null = speed rule off).
 // zone is the learner's IANA time zone; it decides what "today" means (UTC when missing).
 { "vocabularyId": 12, "mode": "PRACTICE", "correct": true, "responseMs": 3200, "thresholdMs": 5000, "zone": "Europe/Madrid" }
@@ -440,6 +440,15 @@ the time from the card appearing to its first flip, with "Got it" = correct. Spe
 typed answers 5 s by default, +2 s per extra gap; flashcards 3 s; the speed rule can be switched off. A correct
 but slow answer shows "But slow: 6.2 s (limit 5.0 s)". Reporting is best effort: a failed POST never interrupts
 practice.
+
+### Speaking (web and Android)
+
+Sentences (Fill the gap, and sentence items in Review) can be answered by voice. The recogniser returns up to five
+guesses; each gap counts as right when one of its accepted answers appears as whole words after the previous gap's
+match, and the guess with the most right gaps wins (`Spoken.kt` / `bestSpoken` in `cloze.js`). The answer is
+reported with `mode: SPEAK` and the same speed limit as a typed answer, timed until the recogniser returns. The
+language comes from the course (`Spanish` → `es-ES`, `Catalan` → `ca-ES`). Text-to-speech reads the Spanish side:
+the term of a word, or the full sentence.
 
 ### Admin mode (shown only when Mode = Admin)
 

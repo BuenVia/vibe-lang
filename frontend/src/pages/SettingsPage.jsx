@@ -110,6 +110,21 @@ export default function SettingsPage() {
           </select>
         </label>
       </div>
+
+      <div className="card">
+        <h2>Speaking</h2>
+        <p className="muted small">
+          Fill the gap and the sentences in Review have a 🎤 button: say the whole sentence and the gaps are checked
+          against what was heard (Chrome and Edge; the browser sends the audio to its speech service). 🔊 reads the
+          Spanish aloud.
+        </p>
+        <label className="checkbox">
+          <input type="checkbox" checked={settings.readAloud} onChange={(e) => update({ readAloud: e.target.checked })} />
+          <span>
+            Read answers aloud<span className="muted"> — after each Check, hear the correct Spanish.</span>
+          </span>
+        </label>
+      </div>
     </section>
   );
 }

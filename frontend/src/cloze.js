@@ -87,3 +87,61 @@ export function parseBulkSentences(text) {
       };
     });
 }
+
+// Spoken answers (same rules as android/.../ui/practice/Spoken.kt). Each gap counts as right when one of its
+// accepted answers appears as whole words after the previous gap's match; other words are ignored.
+
+const words = (text) => normalize(text).split(' ').filter(Boolean);
+
+/** End index of the earliest occurrence of any alternative at or after `from`, or null. */
+function earliest(heard, alternatives, from) {
+  let bestStart = Infinity;
+  let bestEnd = null;
+  for (const alt of alternatives) {
+    for (let start = from; start <= heard.length - alt.length && start < bestStart; start++) {
+      if (alt.every((w, i) => heard[start + i] === w)) {
+        bestStart = start;
+        bestEnd = start + alt.length;
+        break;
+      }
+    }
+  }
+  return bestEnd;
+}
+
+/** Verdicts for one transcript. `expected` holds each gap's raw answer, e.g. "tuviera/tuviese". */
+export function matchSpoken(expected, transcript) {
+  const heard = words(transcript);
+  const heardBare = heard.map(stripAccents);
+  let from = 0;
+  return expected.map((gap) => {
+    const alternatives = [...acceptedAnswers(gap)].map(words).filter((a) => a.length);
+    const exact = earliest(heard, alternatives, from);
+    if (exact != null) {
+      from = exact;
+      return Verdict.CORRECT;
+    }
+    const bare = earliest(heardBare, alternatives.map((a) => a.map(stripAccents)), from);
+    if (bare != null) {
+      from = bare;
+      return Verdict.ACCENTS;
+    }
+    return Verdict.INCORRECT;
+  });
+}
+
+/** The guess with the most right gaps (exact matches breaking ties); earlier guesses win draws. */
+export function bestSpoken(expected, transcripts) {
+  const score = (v) => v.filter((x) => x !== Verdict.INCORRECT).length * 100 + v.filter((x) => x === Verdict.CORRECT).length;
+  let best = null;
+  for (const t of transcripts) {
+    if (!t.trim()) continue;
+    const verdicts = matchSpoken(expected, t);
+    if (!best || score(verdicts) > score(best.verdicts)) best = { heard: t.trim(), verdicts };
+  }
+  return best;
+}
+
+/** What goes in each field after a spoken answer: the expected form for a right gap, nothing for a wrong one. */
+export const spokenAnswers = (gaps, verdicts) =>
+  gaps.map((g, i) => (verdicts[i] !== Verdict.INCORRECT ? g.split('/')[0].trim() : ''));

@@ -65,6 +65,9 @@ import com.vibelang.android.ui.LoadViewModel
 import com.vibelang.android.ui.UiState
 import com.vibelang.android.ui.appViewModel
 import com.vibelang.android.ui.components.EmptyState
+import com.vibelang.android.ui.components.ListenButton
+import com.vibelang.android.ui.components.Speaker
+import com.vibelang.android.ui.components.rememberSpeaker
 import com.vibelang.android.ui.components.StateContent
 import com.vibelang.android.ui.theme.LocalExtraColors
 import kotlinx.coroutines.async
@@ -137,6 +140,7 @@ fun PracticeScreen(subjectId: Long, appVm: AppViewModel, onBack: () -> Unit) {
     val data = (state as? UiState.Ready)?.data
 
     LaunchedEffect(data) { data?.let { vm.startIfNeeded(it.vocabulary, shuffle) } }
+    val speaker = rememberSpeaker(Spoken.locale(appVm.courseLanguage(data?.subject?.courseId)))
 
     Scaffold(
         topBar = {
@@ -184,7 +188,14 @@ fun PracticeScreen(subjectId: Long, appVm: AppViewModel, onBack: () -> Unit) {
                     )
                     else -> {
                         val threshold = settings?.thresholdMs(AnswerKind.TYPED)
-                        WritingRun(session = s, thresholdMs = threshold, onSubmit = { vm.submit(it, threshold) }, onNext = vm::next)
+                        WritingRun(
+                            session = s,
+                            thresholdMs = threshold,
+                            speaker = speaker,
+                            readAloud = settings?.readAloud == true,
+                            onSubmit = { vm.submit(it, threshold) },
+                            onNext = vm::next,
+                        )
                     }
                 }
             }
@@ -196,11 +207,15 @@ fun PracticeScreen(subjectId: Long, appVm: AppViewModel, onBack: () -> Unit) {
 private fun WritingRun(
     session: PracticeSession,
     thresholdMs: Int?,
+    speaker: Speaker,
+    readAloud: Boolean,
     onSubmit: (String) -> Unit,
     onNext: () -> Unit,
 ) {
     val word = session.current ?: return
     val feedback = session.feedback
+    // The term is the Spanish side, so that is what gets read aloud.
+    LaunchedEffect(feedback != null) { if (feedback != null && readAloud) speaker.speak(word.term) }
     // A fresh, empty field for every word, including when the same word comes straight back.
     var answer by rememberSaveable(session.round, session.step) { mutableStateOf("") }
     val focus = remember { FocusRequester() }
@@ -260,7 +275,7 @@ private fun WritingRun(
 
         feedback?.let {
             Spacer(Modifier.height(16.dp))
-            FeedbackCard(word, it, thresholdMs, width)
+            FeedbackCard(word, it, thresholdMs, width) { ListenButton(speaker, word.term) }
         }
 
         Spacer(Modifier.height(20.dp))
@@ -273,7 +288,13 @@ private fun WritingRun(
 }
 
 @Composable
-internal fun FeedbackCard(word: Vocabulary, feedback: Feedback, thresholdMs: Int?, modifier: Modifier) {
+internal fun FeedbackCard(
+    word: Vocabulary,
+    feedback: Feedback,
+    thresholdMs: Int?,
+    modifier: Modifier,
+    actions: @Composable () -> Unit = {},
+) {
     val extra = LocalExtraColors.current
     val correct = feedback.verdict.isCorrect
     val container = if (correct) extra.successContainer else MaterialTheme.colorScheme.errorContainer
@@ -304,6 +325,7 @@ internal fun FeedbackCard(word: Vocabulary, feedback: Feedback, thresholdMs: Int
             word.notes?.let {
                 Text(it, style = MaterialTheme.typography.bodyMedium, fontStyle = FontStyle.Italic)
             }
+            actions()
         }
     }
 }

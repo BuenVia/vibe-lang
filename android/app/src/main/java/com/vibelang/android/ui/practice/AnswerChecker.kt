@@ -57,7 +57,7 @@ object AnswerChecker {
             .trim()
             .replace(WHITESPACE, " ")
 
-    private fun stripAccents(text: String): String =
+    internal fun stripAccents(text: String): String =
         Normalizer.normalize(text, Normalizer.Form.NFD).replace(COMBINING_MARKS, "")
 
     private val BRACKETS = Regex("""\(([^)]*)\)""")

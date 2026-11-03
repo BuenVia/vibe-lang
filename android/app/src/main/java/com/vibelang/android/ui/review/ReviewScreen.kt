@@ -65,14 +65,22 @@ import com.vibelang.android.ui.LoadViewModel
 import com.vibelang.android.ui.UiState
 import com.vibelang.android.ui.appViewModel
 import com.vibelang.android.ui.components.EmptyState
+import com.vibelang.android.ui.components.ListenButton
+import com.vibelang.android.ui.components.MicButton
+import com.vibelang.android.ui.components.Speaker
+import com.vibelang.android.ui.components.SpeechInput
+import com.vibelang.android.ui.components.rememberSpeaker
+import com.vibelang.android.ui.components.rememberSpeechInput
 import com.vibelang.android.ui.components.LoadingIndicator
 import com.vibelang.android.ui.components.NoCourse
 import com.vibelang.android.ui.components.StateContent
 import com.vibelang.android.ui.components.Tag
+import com.vibelang.android.ui.practice.Cloze
 import com.vibelang.android.ui.practice.ClozeFeedback
 import com.vibelang.android.ui.practice.ClozeFeedbackCard
 import com.vibelang.android.ui.practice.Feedback
 import com.vibelang.android.ui.practice.FeedbackCard
+import com.vibelang.android.ui.practice.Spoken
 import com.vibelang.android.ui.practice.clozeText
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -142,6 +150,25 @@ class ReviewViewModel(
         }
     }
 
+    /** Grades a spoken answer to the current sentence and reports the first attempt as SPEAK. */
+    fun submitSpoken(transcripts: List<String>, settings: Settings?) {
+        val session = _session.value ?: return
+        val item = session.current as? ReviewItem.Gap ?: return
+        val firstAttempt = session.isFirstAttempt
+        val result = Spoken.best(item.expected, transcripts) ?: return
+        val ms = timer.elapsedMs()
+        val checked = session.submitSpoken(result, ms)
+        if (checked === session) return
+        _session.value = checked
+        if (firstAttempt) {
+            val threshold = settings?.thresholdMs(AnswerKind.TYPED, item.expected.size)
+            viewModelScope.launch {
+                reviews.report(ReviewMode.SPEAK, sentenceId = item.sentence.id, correct = result.isCorrect,
+                    responseMs = ms, thresholdMs = threshold)
+            }
+        }
+    }
+
     fun next() {
         _session.value?.let { _session.value = it.next() }
         timer.restart()
@@ -162,6 +189,10 @@ fun ReviewScreen(appVm: AppViewModel, onBack: () -> Unit) {
 
     LaunchedEffect(course?.id, newPerDay) { course?.let { vm.load(ReviewKey(it.id, newPerDay)) } }
     LaunchedEffect(data) { data?.let { vm.startIfNeeded(it) } }
+
+    val locale = Spoken.locale(course?.language)
+    val speech = rememberSpeechInput(locale, "Say the whole sentence") { vm.submitSpoken(it, settings) }
+    val speaker = rememberSpeaker(locale)
 
     Scaffold(
         topBar = {
@@ -204,6 +235,8 @@ fun ReviewScreen(appVm: AppViewModel, onBack: () -> Unit) {
                     else -> ReviewRun(
                         session = s,
                         settings = settings,
+                        speech = speech,
+                        speaker = speaker,
                         onSubmit = { vm.submit(it, settings) },
                         onNext = vm::next,
                     )
@@ -214,7 +247,14 @@ fun ReviewScreen(appVm: AppViewModel, onBack: () -> Unit) {
 }
 
 @Composable
-private fun ReviewRun(session: ReviewSession, settings: Settings?, onSubmit: (List<String>) -> Unit, onNext: () -> Unit) {
+private fun ReviewRun(
+    session: ReviewSession,
+    settings: Settings?,
+    speech: SpeechInput,
+    speaker: Speaker,
+    onSubmit: (List<String>) -> Unit,
+    onNext: () -> Unit,
+) {
     val item = session.current ?: return
     val expected = item.expected
     val feedback = session.feedback
@@ -225,6 +265,13 @@ private fun ReviewRun(session: ReviewSession, settings: Settings?, onSubmit: (Li
     val complete = answers.size == expected.size && answers.all { it.isNotBlank() }
     val submitOrNext = { if (feedback == null) onSubmit(answers) else onNext() }
     val threshold = settings?.thresholdMs(AnswerKind.TYPED, expected.size)
+    // The Spanish side: the term for a word, the full sentence for a gap.
+    val spanish = when (item) {
+        is ReviewItem.Word -> item.vocabulary.term
+        is ReviewItem.Gap -> Cloze.solved(item.sentence.text)
+    }
+    LaunchedEffect(feedback?.heard) { feedback?.takeIf { it.heard != null }?.let { answers = it.answers } }
+    LaunchedEffect(feedback != null) { if (feedback != null && settings?.readAloud == true) speaker.speak(spanish) }
 
     Column(
         Modifier
@@ -329,6 +376,11 @@ private fun ReviewRun(session: ReviewSession, settings: Settings?, onSubmit: (Li
             }
         }
 
+        if (feedback == null && item is ReviewItem.Gap) {
+            Spacer(Modifier.height(12.dp))
+            MicButton(speech, "Say the sentence", width)
+        }
+
         feedback?.let {
             Spacer(Modifier.height(16.dp))
             when (item) {
@@ -337,14 +389,14 @@ private fun ReviewRun(session: ReviewSession, settings: Settings?, onSubmit: (Li
                     Feedback(it.answers.first(), it.verdicts.first(), it.responseMs),
                     threshold,
                     width,
-                )
+                ) { ListenButton(speaker, spanish) }
                 is ReviewItem.Gap -> ClozeFeedbackCard(
                     item.sentence,
                     expected,
-                    ClozeFeedback(it.answers, it.verdicts, it.responseMs),
+                    ClozeFeedback(it.answers, it.verdicts, it.responseMs, it.heard),
                     threshold,
                     width,
-                )
+                ) { ListenButton(speaker, spanish) }
             }
         }
 
