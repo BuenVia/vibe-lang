@@ -4,6 +4,7 @@ import { api } from '../api.js';
 import { useSettings } from '../context/SettingsContext.jsx';
 import { useLoad } from '../useLoad.js';
 import { ErrorMessage, Loading } from '../components/Status.jsx';
+import { OnceSaid } from '../components/ClozeText.jsx';
 import { Verdict, expansions, hasGap, solvedSentence } from '../cloze.js';
 import { checkSentence, closest } from '../diff.js';
 import { reportReview, usePromptTimer } from '../reviews.jsx';
@@ -193,6 +194,7 @@ export default function TranslatePage() {
                 </>
               )}
               <div>Model answer: {feedback.model}</div>
+              {current.wrongVersion && <OnceSaid wrong={current.wrongVersion} />}
               {current.explanation && <div className="cloze-explanation">{current.explanation}</div>}
               <div>
                 <ListenButton speech={speech} text={feedback.model} />

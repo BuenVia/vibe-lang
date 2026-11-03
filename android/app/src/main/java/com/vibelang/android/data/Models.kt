@@ -67,7 +67,14 @@ data class Sentence(
     val hint: String? = null,
     val explanation: String? = null,
     val position: Int,
+    val source: SentenceSource = SentenceSource.MANUAL,
+    /** For a mistake: what the learner actually said or wrote. */
+    val wrongVersion: String? = null,
+    val createdAt: String? = null,
 )
+
+@Serializable
+enum class SentenceSource { MANUAL, MISTAKE }
 
 // Spaced repetition. Timestamps are ISO-8601 strings.
 
@@ -135,12 +142,15 @@ data class VocabularyRequest(val term: String, val translation: String, val note
 @Serializable
 data class BulkVocabularyRequest(val items: List<VocabularyRequest>)
 
+/** On update, a null [source] or [wrongVersion] keeps the stored value. */
 @Serializable
 data class SentenceRequest(
     val text: String,
     val translation: String? = null,
     val hint: String? = null,
     val explanation: String? = null,
+    val source: SentenceSource? = null,
+    val wrongVersion: String? = null,
 )
 
 @Serializable

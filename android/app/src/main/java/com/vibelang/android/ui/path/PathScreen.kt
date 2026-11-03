@@ -16,10 +16,12 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -82,7 +84,14 @@ class PathViewModel(private val api: VibeLangApi) : LoadViewModel<PathKey, PathD
 
 /** Home screen: today's review and the course's subjects in learning order. */
 @Composable
-fun PathScreen(appVm: AppViewModel, onOpenSubject: (Long) -> Unit, onEditOrder: () -> Unit, onReview: () -> Unit) {
+fun PathScreen(
+    appVm: AppViewModel,
+    onOpenSubject: (Long) -> Unit,
+    onEditOrder: () -> Unit,
+    onReview: () -> Unit,
+    onAddMistake: () -> Unit,
+    onMistakes: () -> Unit,
+) {
     val vm = appViewModel { PathViewModel(it.api) }
     val courses by appVm.courses.collectAsStateWithLifecycle()
     val course by appVm.selectedCourse.collectAsStateWithLifecycle()
@@ -92,7 +101,17 @@ fun PathScreen(appVm: AppViewModel, onOpenSubject: (Long) -> Unit, onEditOrder: 
     Scaffold(
         topBar = {
             CourseTopBar("Learning path", appVm) {
+                if (course != null) TextButton(onClick = onMistakes) { Text("Mistakes") }
                 if (isAdmin && course != null) TextButton(onClick = onEditOrder) { Text("Edit order") }
+            }
+        },
+        floatingActionButton = {
+            if (course != null) {
+                ExtendedFloatingActionButton(
+                    onClick = onAddMistake,
+                    icon = { Icon(Icons.Filled.Add, contentDescription = null) },
+                    text = { Text("Mistake") },
+                )
             }
         },
     ) { padding ->
@@ -114,7 +133,7 @@ fun PathScreen(appVm: AppViewModel, onOpenSubject: (Long) -> Unit, onEditOrder: 
                                 EmptyState("No subjects in this course yet.")
                             } else {
                                 LazyColumn(
-                                    contentPadding = PaddingValues(16.dp),
+                                    contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 88.dp),
                                     verticalArrangement = Arrangement.spacedBy(10.dp),
                                     modifier = Modifier.fillMaxSize(),
                                 ) {

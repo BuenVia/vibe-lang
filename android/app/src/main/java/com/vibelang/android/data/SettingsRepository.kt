@@ -29,6 +29,8 @@ data class Settings(
     val newPerDay: Int = DEFAULT_NEW_PER_DAY,
     /** Read the Spanish answer aloud after each Check. */
     val readAloud: Boolean = false,
+    /** The subject the last mistake was filed under, offered first next time. */
+    val lastMistakeSubjectId: Long? = null,
 ) {
     val isAdmin: Boolean get() = mode == Mode.ADMIN
 
@@ -66,6 +68,7 @@ class SettingsRepository(private val context: Context) {
         val answerSeconds = intPreferencesKey("answerSeconds")
         val newPerDay = intPreferencesKey("newPerDay")
         val readAloud = booleanPreferencesKey("readAloud")
+        val lastMistakeSubjectId = longPreferencesKey("lastMistakeSubjectId")
     }
 
     val settings: Flow<Settings> = context.dataStore.data.map { p ->
@@ -79,6 +82,7 @@ class SettingsRepository(private val context: Context) {
             answerSeconds = p[Keys.answerSeconds] ?: Settings.DEFAULT_ANSWER_SECONDS,
             newPerDay = p[Keys.newPerDay] ?: Settings.DEFAULT_NEW_PER_DAY,
             readAloud = p[Keys.readAloud] ?: false,
+            lastMistakeSubjectId = p[Keys.lastMistakeSubjectId],
         )
     }
 
@@ -99,4 +103,6 @@ class SettingsRepository(private val context: Context) {
     suspend fun setNewPerDay(count: Int) = context.dataStore.edit { it[Keys.newPerDay] = count }
 
     suspend fun setReadAloud(on: Boolean) = context.dataStore.edit { it[Keys.readAloud] = on }
+
+    suspend fun setLastMistakeSubjectId(id: Long) = context.dataStore.edit { it[Keys.lastMistakeSubjectId] = id }
 }

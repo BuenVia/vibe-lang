@@ -124,7 +124,7 @@ fun SentenceList(
 
 /** The sentence with each gap's answer in bold and underlined. */
 @Composable
-private fun highlightGaps(text: String): AnnotatedString {
+internal fun highlightGaps(text: String): AnnotatedString {
     val color = MaterialTheme.colorScheme.primary
     return remember(text, color) {
         buildAnnotatedString {

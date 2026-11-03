@@ -28,3 +28,12 @@ export function HighlightedSentence({ text }) {
     ),
   );
 }
+
+/** For a sentence from the mistakes log: what the learner originally said, struck through. */
+export function OnceSaid({ wrong }) {
+  return (
+    <div>
+      You once said: <s className="error-text">{wrong}</s>
+    </div>
+  );
+}

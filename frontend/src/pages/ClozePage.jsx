@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { api } from '../api.js';
 import { useSettings } from '../context/SettingsContext.jsx';
 import { useLoad } from '../useLoad.js';
-import { ErrorMessage, Loading } from '../components/Status.jsx';
+import { ErrorMessage, Loading, NoCourse } from '../components/Status.jsx';
+import { OnceSaid } from '../components/ClozeText.jsx';
 import {
   Verdict,
   bestSpoken,
@@ -31,13 +32,23 @@ function shuffle(list) {
  * Fill the gap: each sentence is shown with its gap(s) blanked out and you type the missing word(s).
  * A sentence with any wrong gap goes to the back of the queue until it is answered correctly.
  */
-export default function ClozePage() {
+/** `mistakes`: practise the course's mistakes log (optionally `?subject=ID`) instead of one subject's sentences. */
+export default function ClozePage({ mistakes = false }) {
   const { id } = useParams();
-  const { settings, courses } = useSettings();
+  const [search] = useSearchParams();
+  const subjectFilter = search.get('subject');
+  const { settings, courses, course } = useSettings();
+  const courseId = course?.id;
   const { data, error, loading } = useLoad(async () => {
+    if (mistakes) {
+      if (!courseId) return null;
+      const all = await api.sentences.byCourse(courseId, 'MISTAKE');
+      const sentences = all.filter((s) => !subjectFilter || String(s.subjectId) === subjectFilter);
+      return { subject: { title: 'My mistakes', courseId }, sentences, back: '/mistakes' };
+    }
     const [subject, sentences] = await Promise.all([api.subjects.get(id), api.sentences.list(id)]);
-    return { subject, sentences };
-  }, [id]);
+    return { subject, sentences, back: `/subjects/${id}` };
+  }, [id, mistakes, courseId, subjectFilter]);
 
   const [queue, setQueue] = useState([]);
   const [total, setTotal] = useState(0);
@@ -129,6 +140,7 @@ export default function ClozePage() {
 
   if (loading) return <Loading />;
   if (error) return <ErrorMessage error={error} />;
+  if (!data) return <NoCourse />;
 
   const { subject, sentences } = data;
   const done = total - queue.length;
@@ -136,7 +148,7 @@ export default function ClozePage() {
   return (
     <section className="flashcards">
       <p className="breadcrumb">
-        <Link to={`/subjects/${id}`}>← {subject.title}</Link>
+        <Link to={data.back}>← {mistakes ? 'My mistakes' : subject.title}</Link>
       </p>
       <div className="page-header">
         <h1>Fill the gap</h1>
@@ -146,7 +158,7 @@ export default function ClozePage() {
       </div>
 
       {total === 0 ? (
-        <div className="empty">This subject has no sentences yet.</div>
+        <div className="empty">{mistakes ? 'No mistakes logged yet.' : 'This subject has no sentences yet.'}</div>
       ) : current ? (
         <form onSubmit={onSubmit}>
           <div className="progress">
@@ -209,6 +221,7 @@ export default function ClozePage() {
                   ),
               )}
               {!correct && <div className="small">This sentence will come back at the end.</div>}
+              {current.wrongVersion && <OnceSaid wrong={current.wrongVersion} />}
               {current.explanation && <div className="cloze-explanation">{current.explanation}</div>}
               <div>
                 <ListenButton speech={speech} text={solvedSentence(current.text)} />

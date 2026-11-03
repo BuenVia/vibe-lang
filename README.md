@@ -71,6 +71,15 @@ Vite proxies `/api` to the backend.
   instead of typing. Each gap is checked against what the recogniser heard (filler words are ignored). 🔊 reads the
   Spanish aloud, and "Read answers aloud" in Settings does it after every Check. It uses the device's own speech
   recogniser and text-to-speech (Android) or the Web Speech API (Chrome/Edge), so there are no API costs.
+- **Translate** (web and Android) shows a sentence's English translation and asks for the whole Spanish
+  sentence, typed or spoken. A match with any accepted wording is right straight away; otherwise a word diff
+  against the closest model answer shows what's missing, extra or mis-accented, and you grade it Right, Nearly
+  (counts, but doesn't move up in Review) or Wrong.
+- **Mistakes log** (web and Android): "+ Add mistake" records what you said and the corrected sentence, with the
+  fixed words as `{{gaps}}` ("Mark differences" does this for you). Mistakes are ordinary sentences, so they
+  turn up in Fill the gap, Translate and Review with "You once said: ~~…~~" in the feedback. **My mistakes**
+  lists them newest first and practises them. On Android you can also share text from another app (e.g. a
+  chat message) to Vibe Lang to start a mistake.
 - **Admin mode** is turned on in **Settings**. It adds an *Admin* section where you create, edit, delete and
   reorder courses, categories and subjects. It also adds editors on each subject page: a Markdown lesson editor
   with live preview, inline vocabulary editing with bulk import (`term | translation | notes`, one per line), and
@@ -83,8 +92,8 @@ admin mode only hides the editing features and does not protect them.
 
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md): deploying the database to Supabase and the API and web app to Render
 - [docs/ANDROID_API_GUIDE.md](docs/ANDROID_API_GUIDE.md): app purpose and full API reference for a Kotlin/Android client
-- [docs/ROADMAP.md](docs/ROADMAP.md): designs for the learning features (spaced repetition and speaking are done;
-  sentence translation and a mistakes log are next)
+- [docs/ROADMAP.md](docs/ROADMAP.md): the designs behind spaced repetition, speaking, Translate and the mistakes
+  log (all built)
 
 ## API
 
@@ -104,6 +113,7 @@ admin mode only hides the editing features and does not protect them.
 | POST | `/api/subjects/{id}/vocabulary/bulk` | body `{ "items": [...] }` |
 | PUT, DELETE | `/api/vocabulary/{id}` | |
 | GET, POST | `/api/subjects/{id}/sentences` | `text` must contain a `{{gap}}` |
+| GET | `/api/courses/{courseId}/sentences` | `?source=MISTAKE` for the mistakes log, newest first |
 | POST | `/api/subjects/{id}/sentences/bulk` | body `{ "items": [...] }` |
 | PUT, DELETE | `/api/sentences/{id}` | |
 | POST | `/api/reviews` | report one answer (spaced repetition) |

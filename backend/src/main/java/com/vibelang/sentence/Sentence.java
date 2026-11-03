@@ -3,6 +3,8 @@ package com.vibelang.sentence;
 import com.vibelang.subject.Subject;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -10,6 +12,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+
+import java.time.Instant;
 
 /** A sentence in the target language with one or more gaps, written as {@code {{answer}}}, for cloze practice. */
 @Entity
@@ -43,6 +47,17 @@ public class Sentence {
     @Column(nullable = false)
     private int position;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private SentenceSource source = SentenceSource.MANUAL;
+
+    /** For a mistake: what the learner actually said or wrote. */
+    @Column(name = "wrong_version", length = 1000)
+    private String wrongVersion;
+
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt = Instant.now();
+
     public Long getId() { return id; }
     public Subject getSubject() { return subject; }
     public void setSubject(Subject subject) { this.subject = subject; }
@@ -56,4 +71,9 @@ public class Sentence {
     public void setExplanation(String explanation) { this.explanation = explanation; }
     public int getPosition() { return position; }
     public void setPosition(int position) { this.position = position; }
+    public SentenceSource getSource() { return source; }
+    public void setSource(SentenceSource source) { this.source = source; }
+    public String getWrongVersion() { return wrongVersion; }
+    public void setWrongVersion(String wrongVersion) { this.wrongVersion = wrongVersion; }
+    public Instant getCreatedAt() { return createdAt; }
 }

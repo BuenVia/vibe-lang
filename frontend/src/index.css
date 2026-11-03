@@ -206,3 +206,8 @@ button.listen { padding: 0.25rem 0.7rem; margin-top: 0.25rem; }
 .diff-missing { color: var(--danger); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
 .diff-extra { color: var(--danger); text-decoration: line-through; }
 .diff-accent { color: #c2410c; font-weight: 700; }
+
+/* Mistakes */
+.mistakes li { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; padding: 0.75rem 0; }
+.mistakes .mistake-correct { font-size: 1.05rem; margin: 0.15rem 0; }
+.mistakes .tag { margin-top: 0.35rem; }

@@ -64,6 +64,7 @@ import com.vibelang.android.data.PromptTimer
 import com.vibelang.android.data.ReviewMode
 import com.vibelang.android.data.ReviewReporter
 import com.vibelang.android.data.Sentence
+import com.vibelang.android.data.SentenceSource
 import com.vibelang.android.data.Settings
 import com.vibelang.android.data.Subject
 import com.vibelang.android.data.VibeLangApi
@@ -87,18 +88,31 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-data class ClozeData(val subject: Subject, val sentences: List<Sentence>)
+/** What a Fill the gap run is over: one subject's sentences, or the course's mistakes log (optionally one subject's). */
+sealed interface ClozeSource {
+    data class OfSubject(val subjectId: Long) : ClozeSource
+    data class Mistakes(val courseId: Long, val subjectId: Long? = null) : ClozeSource
+}
+
+data class ClozeData(val title: String, val courseId: Long, val sentences: List<Sentence>)
 
 class ClozeViewModel(
     private val api: VibeLangApi,
     private val reviews: ReviewReporter,
-) : LoadViewModel<Long, ClozeData>() {
+) : LoadViewModel<ClozeSource, ClozeData>() {
     private val timer = PromptTimer()
 
-    override suspend fun fetch(key: Long): ClozeData = coroutineScope {
-        val subject = async { api.subject(key) }
-        val sentences = async { api.sentences(key) }
-        ClozeData(subject.await(), sentences.await())
+    override suspend fun fetch(key: ClozeSource): ClozeData = when (key) {
+        is ClozeSource.OfSubject -> coroutineScope {
+            val subject = async { api.subject(key.subjectId) }
+            val sentences = async { api.sentences(key.subjectId) }
+            val s = subject.await()
+            ClozeData(s.title, s.courseId, sentences.await())
+        }
+        is ClozeSource.Mistakes -> {
+            val all = api.courseSentences(key.courseId, SentenceSource.MISTAKE)
+            ClozeData("My mistakes", key.courseId, all.filter { key.subjectId == null || it.subjectId == key.subjectId })
+        }
     }
 
     private val _session = MutableStateFlow<ClozeSession?>(null)
@@ -157,9 +171,9 @@ class ClozeViewModel(
 
 /** Fill the gap: the learner sees a sentence in context and types the missing word(s). */
 @Composable
-fun ClozeScreen(subjectId: Long, appVm: AppViewModel, onBack: () -> Unit) {
+fun ClozeScreen(source: ClozeSource, appVm: AppViewModel, onBack: () -> Unit) {
     val vm = appViewModel { ClozeViewModel(it.api, it.reviews) }
-    LaunchedEffect(subjectId) { vm.load(subjectId) }
+    LaunchedEffect(source) { vm.load(source) }
 
     val state by vm.state.collectAsStateWithLifecycle()
     val session by vm.session.collectAsStateWithLifecycle()
@@ -169,7 +183,7 @@ fun ClozeScreen(subjectId: Long, appVm: AppViewModel, onBack: () -> Unit) {
 
     LaunchedEffect(data) { data?.let { vm.startIfNeeded(it.sentences, shuffle) } }
 
-    val locale = Spoken.locale(appVm.courseLanguage(data?.subject?.courseId))
+    val locale = Spoken.locale(appVm.courseLanguage(data?.courseId))
     val speech = rememberSpeechInput(locale, "Say the whole sentence") { vm.submitSpoken(it, settings) }
     val speaker = rememberSpeaker(locale)
 
@@ -181,7 +195,7 @@ fun ClozeScreen(subjectId: Long, appVm: AppViewModel, onBack: () -> Unit) {
                         Text("Fill the gap")
                         data?.let {
                             Text(
-                                it.subject.title,
+                                it.title,
                                 style = MaterialTheme.typography.labelLarge,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
@@ -210,7 +224,9 @@ fun ClozeScreen(subjectId: Long, appVm: AppViewModel, onBack: () -> Unit) {
                 val s = session
                 when {
                     s == null -> Unit
-                    s.total == 0 -> EmptyState("This subject has no sentences yet.")
+                    s.total == 0 -> EmptyState(
+                        if (source is ClozeSource.Mistakes) "No mistakes logged yet." else "This subject has no sentences yet.",
+                    )
                     s.isFinished -> ClozeSummary(
                         session = s,
                         missedSentences = d.sentences.filter { it.id in s.missed },
@@ -418,6 +434,7 @@ internal fun ClozeFeedbackCard(
                 fontWeight = FontWeight.SemiBold,
             )
             if (correct) SlowNote(feedback.responseMs, thresholdMs)
+            sentence.wrongVersion?.let { OnceSaid(it) }
             feedback.heard?.let { Text("Heard: \"$it\"", style = MaterialTheme.typography.bodyMedium, fontStyle = FontStyle.Italic) }
             gaps.forEachIndexed { i, expected ->
                 val verdict = feedback.verdicts[i]
@@ -484,4 +501,16 @@ private fun ClozeSummary(
             Button(onClick = onRestart, modifier = Modifier.fillMaxWidth()) { Text("Start again") }
         }
     }
+}
+
+/** For a sentence from the mistakes log: what the learner originally said, struck through. */
+@Composable
+internal fun OnceSaid(wrong: String) {
+    Text(
+        buildAnnotatedString {
+            append("You once said: ")
+            withStyle(SpanStyle(textDecoration = TextDecoration.LineThrough)) { append(wrong) }
+        },
+        style = MaterialTheme.typography.bodyMedium,
+    )
 }

@@ -7,6 +7,8 @@ import StudyPage from './pages/StudyPage.jsx';
 import ClozePage from './pages/ClozePage.jsx';
 import ReviewPage from './pages/ReviewPage.jsx';
 import TranslatePage from './pages/TranslatePage.jsx';
+import MistakesPage from './pages/MistakesPage.jsx';
+import AddMistakePage from './pages/AddMistakePage.jsx';
 import SettingsPage from './pages/SettingsPage.jsx';
 import AdminPage from './pages/admin/AdminPage.jsx';
 
@@ -24,6 +26,7 @@ export default function App() {
             Learning path
           </NavLink>
           <NavLink to="/categories">Categories</NavLink>
+          <NavLink to="/mistakes">Mistakes</NavLink>
           {isAdmin && <NavLink to="/admin">Admin</NavLink>}
           <NavLink to="/settings">Settings</NavLink>
         </nav>
@@ -52,6 +55,9 @@ export default function App() {
           <Route path="/" element={<LearningPathPage />} />
           <Route path="/categories" element={<CategoriesPage />} />
           <Route path="/review" element={<ReviewPage />} />
+          <Route path="/mistakes" element={<MistakesPage />} />
+          <Route path="/mistakes/new" element={<AddMistakePage />} />
+          <Route path="/mistakes/practice" element={<ClozePage mistakes />} />
           <Route path="/subjects/:id" element={<SubjectPage />} />
           <Route path="/subjects/:id/study" element={<StudyPage />} />
           <Route path="/subjects/:id/cloze" element={<ClozePage />} />

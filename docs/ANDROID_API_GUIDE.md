@@ -174,9 +174,14 @@ supports them.
   "translation": "If I had more time, I would learn to play the guitar.",
   "hint": "tener",
   "explanation": "Si + imperfecto de subjuntivo + condicional: a hypothetical present condition.",
-  "position": 1
+  "position": 1,
+  "source": "MANUAL",
+  "wrongVersion": null,
+  "createdAt": "2026-11-03T19:25:11Z"
 }
 ```
+`source` is `MANUAL` (practice material) or `MISTAKE` (from the mistakes log, with `wrongVersion` = what the
+learner actually said).
 `text` marks each gap with double braces. A sentence can have several gaps, and `/` inside a gap separates
 accepted alternatives. `{{}}` (empty) is not a gap. The client blanks out the gaps, so the API never needs to
 know about the answers separately.
@@ -282,15 +287,17 @@ Treat `404` on `GET` as "no lesson yet", not as an error. You can avoid the requ
 | Method | Path | Body | Response |
 |---|---|---|---|
 | `GET` | `/api/subjects/{subjectId}/sentences` | — | `200` `Sentence[]`, ordered · `404` |
+| `GET` | `/api/courses/{courseId}/sentences?source=MISTAKE` | — | `200` `Sentence[]`, newest first (all sources without `source`) · `400` · `404` |
 | `POST` | `/api/subjects/{subjectId}/sentences` | `SentenceRequest` | `201` `Sentence` · `400` · `404` |
 | `POST` | `/api/subjects/{subjectId}/sentences/bulk` | `BulkSentenceRequest` | `201` `Sentence[]` · `400` · `404` |
 | `PUT` | `/api/sentences/{id}` | `SentenceRequest` | `200` `Sentence` · `400` · `404` |
 | `DELETE` | `/api/sentences/{id}` | — | `204` · `404` |
 
 ```json
-// SentenceRequest
+// SentenceRequest. source (MANUAL | MISTAKE) and wrongVersion are optional; on update, leaving them out
+// (or null) keeps the stored values, and wrongVersion "" clears it.
 { "text": "No creo que {{tenga}} razón.", "translation": "I don't think he's right.", "hint": "tener",
-  "explanation": "No creer que → subjunctive (doubt)." }
+  "explanation": "No creer que → subjunctive (doubt).", "source": "MISTAKE", "wrongVersion": "No creo que tiene razón." }
 
 // BulkSentenceRequest (all-or-nothing, like vocabulary)
 { "items": [ { "text": "{{Aunque}} llueva, iremos." } ] }
@@ -305,12 +312,13 @@ Treat `404` on `GET` as "no lesson yet", not as an error. You can avoid the requ
 | `GET` | `/api/courses/{courseId}/progress?zone=Europe/Madrid` | — | `200` `SubjectProgress[]` · `404` |
 
 ```json
-// ReviewRequest: exactly one of vocabularyId / sentenceId. mode: STUDY | PRACTICE | CLOZE | REVIEW | SPEAK.
+// ReviewRequest: exactly one of vocabularyId / sentenceId. mode: STUDY | PRACTICE | CLOZE | REVIEW | SPEAK | TRANSLATE.
+// nearly: true = a self-graded small slip (Translate): counts as right but doesn't move the item up.
 // thresholdMs is the speed limit the client applied (omit or null = speed rule off).
 // zone is the learner's IANA time zone; it decides what "today" means (UTC when missing).
 { "vocabularyId": 12, "mode": "PRACTICE", "correct": true, "responseMs": 3200, "thresholdMs": 5000, "zone": "Europe/Madrid" }
 
-// ReviewResult. outcome: PROMOTED | SLOW | SAME_DAY | LAPSED
+// ReviewResult. outcome: PROMOTED | SLOW | NEARLY | SAME_DAY | LAPSED
 { "vocabularyId": 12, "sentenceId": null, "box": 3, "dueAt": "2026-11-07T18:35:08Z", "outcome": "PROMOTED", "reviews": 4, "lapses": 1 }
 
 // DueResponse: counts are today's totals, items is capped by `limit`. Due items first (oldest first),
@@ -331,6 +339,7 @@ Scheduling rules (server side, `ReviewScheduler`):
 |---|---|
 | Wrong | box 1, due now |
 | Right, but the item was already reviewed earlier today | box unchanged, due tomorrow at the earliest (`SAME_DAY`) |
+| Right but `nearly: true` | box unchanged, due tomorrow (`NEARLY`) |
 | Right but slower than `thresholdMs` | box unchanged, due tomorrow (`SLOW`) |
 | Right and fast | box + 1 (max 5), due in 1, 2, 4, 8 or 16 days; 32 days when already in box 5 |
 
@@ -449,6 +458,23 @@ match, and the guess with the most right gaps wins (`Spoken.kt` / `bestSpoken` i
 reported with `mode: SPEAK` and the same speed limit as a typed answer, timed until the recogniser returns. The
 language comes from the course (`Spanish` → `es-ES`, `Catalan` → `ca-ES`). Text-to-speech reads the Spanish side:
 the term of a word, or the full sentence.
+
+### Translate (web and Android)
+
+Prompt: `sentence.translation`. Accepted answers: every combination of the gaps' alternatives
+(`Cloze.expansions`, max 32), compared as whole sentences (case, punctuation and spacing ignored; `/` and `;`
+are NOT alternatives here). A match is right straight away; otherwise show a word diff against the closest
+accepted sentence (`TextDiff` / `diff.js`) and let the learner grade Right / Nearly / Wrong. Report the first
+attempt with `mode: TRANSLATE`, no `thresholdMs`, and `nearly: true` for Nearly.
+
+### Mistakes log (web and Android)
+
+"Add mistake" saves a sentence with `source: MISTAKE` and `wrongVersion`. "Mark differences" wraps the words of
+the correct version that differ from what was said in `{{…}}` (`TextDiff.markDifferences` / `markDifferences`
+in `diff.js`). Mistakes go into a subject the learner picks, or "Errores" in the category "Mis errores", which the
+client creates with the normal category/subject endpoints on first use. "My mistakes" lists
+`GET /api/courses/{id}/sentences?source=MISTAKE` and runs Fill the gap over them. Feedback for a sentence with a
+`wrongVersion` shows "You once said: ~~…~~".
 
 ### Admin mode (shown only when Mode = Admin)
 

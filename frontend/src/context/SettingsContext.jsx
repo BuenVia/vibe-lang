@@ -11,6 +11,7 @@ const DEFAULTS = {
   answerSeconds: 5, // time limit for a typed answer with one gap
   newPerDay: 10, // new items Review introduces per day
   readAloud: false, // read the Spanish answer aloud after each Check
+  lastMistakeSubjectId: null, // the subject the last mistake was filed under
 };
 
 function loadSettings() {

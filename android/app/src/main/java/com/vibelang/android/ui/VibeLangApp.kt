@@ -16,6 +16,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -31,9 +32,12 @@ import androidx.navigation.toRoute
 import com.vibelang.android.ui.admin.AdminScreen
 import com.vibelang.android.ui.admin.AdminTab
 import com.vibelang.android.ui.categories.CategoriesScreen
+import com.vibelang.android.ui.mistakes.AddMistakeScreen
+import com.vibelang.android.ui.mistakes.MistakesScreen
 import com.vibelang.android.ui.study.StudyScreen
 import com.vibelang.android.ui.path.PathScreen
 import com.vibelang.android.ui.practice.ClozeScreen
+import com.vibelang.android.ui.practice.ClozeSource
 import com.vibelang.android.ui.practice.PracticeScreen
 import com.vibelang.android.ui.practice.TranslateScreen
 import com.vibelang.android.ui.review.ReviewScreen
@@ -64,16 +68,35 @@ import kotlin.reflect.KClass
 
 @Serializable data class TranslateRoute(val subjectId: Long)
 
+/** [prefill] is text shared from another app. */
+@Serializable data class AddMistakeRoute(val prefill: String? = null)
+
+@Serializable data object MistakesRoute
+
+/** Fill the gap over the mistakes log; [subjectId] = -1 for all subjects. */
+@Serializable data class MistakesClozeRoute(val courseId: Long, val subjectId: Long = -1)
+
 private data class TopLevel(val label: String, val icon: ImageVector, val route: Any, val routeClass: KClass<*>)
 
+/**
+ * [sharedText] is text another app shared with Vibe Lang (Android share sheet); it opens Add mistake with
+ * "What I said" filled in, and [onSharedTextHandled] clears it so it opens only once.
+ */
 @Composable
-fun VibeLangApp() {
+fun VibeLangApp(sharedText: String? = null, onSharedTextHandled: () -> Unit = {}) {
     val appVm: AppViewModel = appViewModel { AppViewModel(it.api, it.settings) }
     val settings by appVm.settings.collectAsStateWithLifecycle()
     val navController = rememberNavController()
 
     // Wait for stored settings so the app doesn't flash learner mode before switching to admin.
     val s = settings ?: return Box(Modifier.fillMaxSize())
+
+    LaunchedEffect(sharedText) {
+        if (!sharedText.isNullOrBlank()) {
+            navController.navigate(AddMistakeRoute(sharedText.trim()))
+            onSharedTextHandled()
+        }
+    }
 
     val tabs = buildList {
         add(TopLevel("Path", Icons.Filled.Home, PathRoute, PathRoute::class))
@@ -113,6 +136,8 @@ fun VibeLangApp() {
                     onOpenSubject = { navController.navigate(SubjectRoute(it)) },
                     onEditOrder = { navController.navigateToTab(AdminRoute(AdminTab.SUBJECTS), restore = false) },
                     onReview = { navController.navigate(ReviewRoute) },
+                    onAddMistake = { navController.navigate(AddMistakeRoute()) },
+                    onMistakes = { navController.navigate(MistakesRoute) },
                 )
             }
             composable<CategoriesRoute> {
@@ -158,6 +183,37 @@ fun VibeLangApp() {
                     onBack = { navController.popBackStack() },
                 )
             }
+            composable<AddMistakeRoute> { entry ->
+                AddMistakeScreen(
+                    appVm = appVm,
+                    prefill = entry.toRoute<AddMistakeRoute>().prefill,
+                    onBack = { navController.popBackStack() },
+                    onSaved = {
+                        navController.navigate(MistakesRoute) {
+                            popUpTo<AddMistakeRoute> { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    },
+                )
+            }
+            composable<MistakesRoute> {
+                MistakesScreen(
+                    appVm = appVm,
+                    onBack = { navController.popBackStack() },
+                    onAdd = { navController.navigate(AddMistakeRoute()) },
+                    onPractise = { subjectId ->
+                        appVm.selectedCourse.value?.let { navController.navigate(MistakesClozeRoute(it.id, subjectId ?: -1)) }
+                    },
+                )
+            }
+            composable<MistakesClozeRoute> { entry ->
+                val route = entry.toRoute<MistakesClozeRoute>()
+                ClozeScreen(
+                    source = ClozeSource.Mistakes(route.courseId, route.subjectId.takeIf { it >= 0 }),
+                    appVm = appVm,
+                    onBack = { navController.popBackStack() },
+                )
+            }
             composable<TranslateRoute> { entry ->
                 TranslateScreen(
                     subjectId = entry.toRoute<TranslateRoute>().subjectId,
@@ -170,7 +226,7 @@ fun VibeLangApp() {
             }
             composable<ClozeRoute> { entry ->
                 ClozeScreen(
-                    subjectId = entry.toRoute<ClozeRoute>().subjectId,
+                    source = ClozeSource.OfSubject(entry.toRoute<ClozeRoute>().subjectId),
                     appVm = appVm,
                     onBack = { navController.popBackStack() },
                 )

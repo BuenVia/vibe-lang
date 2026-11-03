@@ -34,11 +34,16 @@ export default function LearningPathPage() {
           <h1>{courseLabel(course)}</h1>
           {course.description && <p className="muted">{course.description}</p>}
         </div>
-        {isAdmin && (
-          <Link className="button" to="/admin/subjects">
-            Edit learning order
+        <div className="actions">
+          <Link className="button" to="/mistakes/new">
+            + Add mistake
           </Link>
-        )}
+          {isAdmin && (
+            <Link className="button" to="/admin/subjects">
+              Edit learning order
+            </Link>
+          )}
+        </div>
       </div>
 
       <ErrorMessage error={error} />

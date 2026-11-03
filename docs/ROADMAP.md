@@ -13,10 +13,10 @@ No AI or paid APIs: everything runs on the server's own logic or on free on-devi
 |---|---|---|---|
 | 1 | Spaced repetition with a speed rule (**done**) | B | — |
 | 2 | Speaking mode (speech input + text-to-speech) (**done**) | B | — |
-| 3 | Full-sentence translation with diff and self-grading | A, B (writing) | — |
-| 4 | Mistakes log | A | 3 (reuses the diff) |
+| 3 | Full-sentence translation with diff and self-grading (**done**) | A, B (writing) | — |
+| 4 | Mistakes log (**done**) | A | 3 (reuses the diff) |
 
-Suggested order: **1 → 2 → 3 → 4**. Sections 1 and 2 are built; the next one is full-sentence translation (§3).
+Suggested order: **1 → 2 → 3 → 4**. All four sections are built.
 
 ## Context for a future session
 
@@ -31,7 +31,7 @@ Suggested order: **1 → 2 → 3 → 4**. Sections 1 and 2 are built; the next o
   `StudySession.kt` (tests in `android/app/src/test/...`). The web pages keep the same logic in React state.
 - **No authentication and a single learner.** Progress can be stored on the server without a `user_id` for now.
   If accounts are added later, add a `user_id` column to the progress tables.
-- **Migrations** are Flyway files in `backend/src/main/resources/db/migration/` (`V1`–`V4` exist; continue at `V5`).
+- **Migrations** are Flyway files in `backend/src/main/resources/db/migration/` (`V1`–`V5` exist; continue at `V6`).
   Production's content differs from the V2 sample data, so never refer to rows by hard-coded id in a migration.
 - **Spaced repetition** is in place (§1): new practice modes should time each prompt and report the first attempt
   with `POST /api/reviews`. On Android use `PromptTimer` + `ReviewReporter`; on the web `usePromptTimer` +
@@ -234,6 +234,10 @@ feedback card ("Heard: …").
 
 ## 3. Full-sentence translation (writing)
 
+> **Status: built.** As designed, plus: the answer can be spoken (🎤 fills the text box, so it can be corrected
+> before checking), Translate answers have no speed limit, and "Nearly" is sent as `nearly: true`, which the
+> API schedules as `NEARLY` (box kept, due tomorrow). No `alternatives` column yet.
+
 ### Why
 
 Fill the gap tests one form in a sentence that's already written. Producing the **whole** sentence from English
@@ -277,6 +281,10 @@ accent-only change, and an empty answer.
 ---
 
 ## 4. Mistakes log
+
+> **Status: built.** As designed. Mistakes can be logged in Learner mode too, since they're the learner's own
+> data. On update, an omitted `source` / `wrongVersion` keeps the stored value, so the existing sentence editors
+> don't wipe them.
 
 ### Why
 

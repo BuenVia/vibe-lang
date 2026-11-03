@@ -370,6 +370,7 @@ private fun TranslateFeedbackCard(
                 )
             }
             Text("Model answer: ${feedback.model}", style = MaterialTheme.typography.bodyLarge)
+            sentence.wrongVersion?.let { OnceSaid(it) }
             sentence.explanation?.let { Text(it, style = MaterialTheme.typography.bodyMedium, fontStyle = FontStyle.Italic) }
             ListenButton(speaker, feedback.model)
         }

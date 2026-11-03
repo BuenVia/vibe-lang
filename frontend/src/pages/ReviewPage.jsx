@@ -4,7 +4,7 @@ import { api } from '../api.js';
 import { courseLabel, useSettings } from '../context/SettingsContext.jsx';
 import { useLoad } from '../useLoad.js';
 import { ErrorMessage, Loading, NoCourse } from '../components/Status.jsx';
-import { ClozeSentence } from '../components/ClozeText.jsx';
+import { ClozeSentence, OnceSaid } from '../components/ClozeText.jsx';
 import { Verdict, bestSpoken, checkAnswer, clozeGaps, displayAnswer, hasGap, solvedSentence, spokenAnswers } from '../cloze.js';
 import { ListenButton, MicButton, speechLang, useSpeech } from '../speech.jsx';
 import { DEFAULT_NEW_PER_DAY, SlowNote, currentZone, reportReview, thresholdMs, usePromptTimer } from '../reviews.jsx';
@@ -220,6 +220,7 @@ export default function ReviewPage() {
                   ),
               )}
               {!correct && <div className="small">This will come back at the end.</div>}
+              {current.sentence?.wrongVersion && <OnceSaid wrong={current.sentence.wrongVersion} />}
               {(current.word?.notes || current.sentence?.explanation) && (
                 <div className="cloze-explanation">{current.word?.notes ?? current.sentence.explanation}</div>
               )}

@@ -65,6 +65,8 @@ export const api = {
   },
   sentences: {
     list: (subjectId) => get(`/subjects/${subjectId}/sentences`),
+    // source = 'MISTAKE' lists the mistakes log, newest first.
+    byCourse: (courseId, source) => get(`/courses/${courseId}/sentences${source ? `?source=${source}` : ''}`),
     create: (subjectId, body) => post(`/subjects/${subjectId}/sentences`, body),
     createMany: (subjectId, items) => post(`/subjects/${subjectId}/sentences/bulk`, { items }),
     update: (id, body) => put(`/sentences/${id}`, body),

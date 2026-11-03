@@ -81,6 +81,7 @@ class AppViewModel(
     fun setAnswerSeconds(seconds: Int) = viewModelScope.launch { repository.setAnswerSeconds(seconds) }
     fun setNewPerDay(count: Int) = viewModelScope.launch { repository.setNewPerDay(count) }
     fun setReadAloud(on: Boolean) = viewModelScope.launch { repository.setReadAloud(on) }
+    fun setLastMistakeSubjectId(id: Long) = viewModelScope.launch { repository.setLastMistakeSubjectId(id) }
 
     /** The language of a course, for speech recognition and text-to-speech. */
     fun courseLanguage(courseId: Long?): String? =

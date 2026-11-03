@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -27,6 +28,13 @@ public class SentenceController {
     @GetMapping("/subjects/{subjectId}/sentences")
     public List<SentenceDto> list(@PathVariable Long subjectId) {
         return service.findBySubject(subjectId);
+    }
+
+    /** E.g. {@code ?source=MISTAKE} for the mistakes log, newest first. */
+    @GetMapping("/courses/{courseId}/sentences")
+    public List<SentenceDto> listForCourse(@PathVariable Long courseId,
+                                           @RequestParam(required = false) SentenceSource source) {
+        return service.findByCourse(courseId, source);
     }
 
     @PostMapping("/subjects/{subjectId}/sentences")

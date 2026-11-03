@@ -1,6 +1,7 @@
 package com.vibelang.sentence;
 
 import com.vibelang.common.NotFoundException;
+import com.vibelang.course.CourseService;
 import com.vibelang.subject.Subject;
 import com.vibelang.subject.SubjectService;
 import org.springframework.stereotype.Service;
@@ -15,10 +16,22 @@ public class SentenceService {
 
     private final SentenceRepository sentences;
     private final SubjectService subjectService;
+    private final CourseService courseService;
 
-    public SentenceService(SentenceRepository sentences, SubjectService subjectService) {
+    public SentenceService(SentenceRepository sentences, SubjectService subjectService, CourseService courseService) {
         this.sentences = sentences;
         this.subjectService = subjectService;
+        this.courseService = courseService;
+    }
+
+    /** A course's sentences from one source, newest first; all sources when {@code source} is null. */
+    @Transactional(readOnly = true)
+    public List<SentenceDto> findByCourse(Long courseId, SentenceSource source) {
+        courseService.getEntity(courseId);
+        List<Sentence> found = source == null
+                ? sentences.findByCourse(courseId)
+                : sentences.findByCourseAndSource(courseId, source);
+        return found.stream().map(SentenceDto::from).toList();
     }
 
     @Transactional(readOnly = true)
@@ -64,6 +77,8 @@ public class SentenceService {
         s.setTranslation(blankToNull(request.translation()));
         s.setHint(blankToNull(request.hint()));
         s.setExplanation(blankToNull(request.explanation()));
+        if (request.source() != null) s.setSource(request.source());
+        if (request.wrongVersion() != null) s.setWrongVersion(blankToNull(request.wrongVersion()));
     }
 
     private static String blankToNull(String value) {

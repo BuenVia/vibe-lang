@@ -85,7 +85,10 @@ interface VibeLangApi {
     @DELETE("api/vocabulary/{id}")
     suspend fun deleteVocabulary(@Path("id") id: Long): Response<Unit>
 
-    // Sentences (Fill the gap)
+    // Sentences (Fill the gap). source = MISTAKE lists the mistakes log, newest first.
+    @GET("api/courses/{courseId}/sentences")
+    suspend fun courseSentences(@Path("courseId") courseId: Long, @Query("source") source: SentenceSource? = null): List<Sentence>
+
     @GET("api/subjects/{id}/sentences")
     suspend fun sentences(@Path("id") subjectId: Long): List<Sentence>
 
