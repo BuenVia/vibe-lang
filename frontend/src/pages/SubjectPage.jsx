@@ -7,6 +7,8 @@ import { ErrorMessage, Loading } from '../components/Status.jsx';
 import Markdown from '../components/Markdown.jsx';
 import LessonEditor from '../components/LessonEditor.jsx';
 import VocabularyEditor from '../components/VocabularyEditor.jsx';
+import SentenceEditor from '../components/SentenceEditor.jsx';
+import { HighlightedSentence } from '../components/ClozeText.jsx';
 
 export default function SubjectPage() {
   const { id } = useParams();
@@ -14,20 +16,22 @@ export default function SubjectPage() {
   const [tab, setTab] = useState('lesson');
 
   const { data, error, loading, setData } = useLoad(async () => {
-    const [subject, lesson, vocabulary] = await Promise.all([
+    const [subject, lesson, vocabulary, sentences] = await Promise.all([
       api.subjects.get(id),
       api.lessons.get(id),
       api.vocabulary.list(id),
+      api.sentences.list(id),
     ]);
-    return { subject, lesson, vocabulary };
+    return { subject, lesson, vocabulary, sentences };
   }, [id]);
 
   if (loading) return <Loading />;
   if (error) return <ErrorMessage error={error} />;
 
-  const { subject, lesson, vocabulary } = data;
+  const { subject, lesson, vocabulary, sentences } = data;
   const setLesson = (l) => setData((d) => ({ ...d, lesson: l }));
   const setVocabulary = (v) => setData((d) => ({ ...d, vocabulary: v }));
+  const setSentences = (s) => setData((d) => ({ ...d, sentences: s }));
 
   return (
     <section>
@@ -39,15 +43,23 @@ export default function SubjectPage() {
           <h1>{subject.title}</h1>
           {subject.description && <p className="muted">{subject.description}</p>}
         </div>
-        {vocabulary.length > 0 ? (
-          <Link className="button primary" to={`/subjects/${id}/study`}>
-            Study {vocabulary.length} flashcards
-          </Link>
-        ) : (
-          <button className="primary" disabled>
-            No flashcards yet
-          </button>
-        )}
+        <div className="actions">
+          {sentences.length > 0 && (
+            <Link className="button" to={`/subjects/${id}/cloze`}>
+              Fill the gap ({sentences.length})
+            </Link>
+          )}
+          {vocabulary.length > 0 && (
+            <Link className="button primary" to={`/subjects/${id}/study`}>
+              Study {vocabulary.length} flashcards
+            </Link>
+          )}
+          {vocabulary.length === 0 && sentences.length === 0 && (
+            <button className="primary" disabled>
+              Nothing to practise yet
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="tabs">
@@ -56,6 +68,9 @@ export default function SubjectPage() {
         </button>
         <button className={tab === 'vocabulary' ? 'active' : ''} onClick={() => setTab('vocabulary')}>
           Vocabulary ({vocabulary.length})
+        </button>
+        <button className={tab === 'sentences' ? 'active' : ''} onClick={() => setTab('sentences')}>
+          Sentences ({sentences.length})
         </button>
       </div>
 
@@ -92,6 +107,34 @@ export default function SubjectPage() {
                   </td>
                   <td>{v.translation}</td>
                   <td className="muted">{v.notes}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ))}
+
+      {tab === 'sentences' &&
+        (isAdmin ? (
+          <SentenceEditor subjectId={id} items={sentences} onChange={setSentences} />
+        ) : sentences.length === 0 ? (
+          <div className="empty">There are no sentences for this subject yet.</div>
+        ) : (
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Sentence</th>
+                <th>Translation</th>
+                <th>Explanation</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sentences.map((s) => (
+                <tr key={s.id}>
+                  <td>
+                    <HighlightedSentence text={s.text} />
+                  </td>
+                  <td>{s.translation}</td>
+                  <td className="muted">{s.explanation}</td>
                 </tr>
               ))}
             </tbody>

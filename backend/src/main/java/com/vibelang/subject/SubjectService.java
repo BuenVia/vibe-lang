@@ -6,6 +6,7 @@ import com.vibelang.common.NotFoundException;
 import com.vibelang.common.Positions;
 import com.vibelang.course.CourseService;
 import com.vibelang.lesson.LessonRepository;
+import com.vibelang.sentence.SentenceRepository;
 import com.vibelang.vocabulary.VocabularyRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,14 +27,17 @@ public class SubjectService {
     private final CourseService courseService;
     private final LessonRepository lessons;
     private final VocabularyRepository vocabulary;
+    private final SentenceRepository sentences;
 
     public SubjectService(SubjectRepository subjects, CategoryService categoryService, CourseService courseService,
-                          LessonRepository lessons, VocabularyRepository vocabulary) {
+                          LessonRepository lessons, VocabularyRepository vocabulary,
+                          SentenceRepository sentences) {
         this.subjects = subjects;
         this.categoryService = categoryService;
         this.courseService = courseService;
         this.lessons = lessons;
         this.vocabulary = vocabulary;
+        this.sentences = sentences;
     }
 
     /** All subjects of a course in learning order. */
@@ -41,12 +45,11 @@ public class SubjectService {
     public List<SubjectDto> findByCourse(Long courseId) {
         courseService.getEntity(courseId);
         Set<Long> withLesson = new HashSet<>(lessons.findSubjectIdsByCourse(courseId));
-        Map<Long, Long> vocabCounts = new HashMap<>();
-        for (Object[] row : vocabulary.countBySubjectForCourse(courseId)) {
-            vocabCounts.put((Long) row[0], (Long) row[1]);
-        }
+        Map<Long, Long> vocabCounts = toCounts(vocabulary.countBySubjectForCourse(courseId));
+        Map<Long, Long> sentenceCounts = toCounts(sentences.countBySubjectForCourse(courseId));
         return subjects.findByCourse(courseId).stream()
-                .map(s -> SubjectDto.from(s, withLesson.contains(s.getId()), vocabCounts.getOrDefault(s.getId(), 0L)))
+                .map(s -> SubjectDto.from(s, withLesson.contains(s.getId()),
+                        vocabCounts.getOrDefault(s.getId(), 0L), sentenceCounts.getOrDefault(s.getId(), 0L)))
                 .toList();
     }
 
@@ -81,7 +84,7 @@ public class SubjectService {
         return toDto(subject);
     }
 
-    /** The lesson and vocabulary are removed by ON DELETE CASCADE. */
+    /** The lesson, vocabulary and sentences are removed by ON DELETE CASCADE. */
     public void delete(Long id) {
         subjects.delete(getEntity(id));
     }
@@ -94,7 +97,17 @@ public class SubjectService {
     }
 
     private SubjectDto toDto(Subject s) {
-        return SubjectDto.from(s, lessons.existsBySubjectId(s.getId()), vocabulary.countBySubjectId(s.getId()));
+        return SubjectDto.from(s, lessons.existsBySubjectId(s.getId()), vocabulary.countBySubjectId(s.getId()),
+                sentences.countBySubjectId(s.getId()));
+    }
+
+    /** Turns rows of [subjectId, count] into a map. */
+    private static Map<Long, Long> toCounts(List<Object[]> rows) {
+        Map<Long, Long> counts = new HashMap<>();
+        for (Object[] row : rows) {
+            counts.put((Long) row[0], (Long) row[1]);
+        }
+        return counts;
     }
 
     private static void apply(Subject subject, SubjectRequest request, Category category) {

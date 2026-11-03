@@ -9,9 +9,10 @@ public record SubjectDto(
         String description,
         int position,
         boolean hasLesson,
-        long vocabularyCount) {
+        long vocabularyCount,
+        long sentenceCount) {
 
-    public static SubjectDto from(Subject s, boolean hasLesson, long vocabularyCount) {
+    public static SubjectDto from(Subject s, boolean hasLesson, long vocabularyCount, long sentenceCount) {
         return new SubjectDto(
                 s.getId(),
                 s.getCategory().getId(),
@@ -21,6 +22,7 @@ public record SubjectDto(
                 s.getDescription(),
                 s.getPosition(),
                 hasLesson,
-                vocabularyCount);
+                vocabularyCount,
+                sentenceCount);
     }
 }

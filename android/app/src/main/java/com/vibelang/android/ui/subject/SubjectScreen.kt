@@ -19,6 +19,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Create
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PlayArrow
@@ -61,6 +62,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.vibelang.android.data.Lesson
+import com.vibelang.android.data.Sentence
 import com.vibelang.android.data.Vocabulary
 import com.vibelang.android.data.VocabularyRequest
 import com.vibelang.android.data.blankToNull
@@ -75,7 +77,10 @@ import com.vibelang.android.ui.components.MarkdownText
 import com.vibelang.android.ui.components.StateContent
 import com.vibelang.android.ui.components.Tag
 
-/** One subject: header, Study and Practice buttons and Lesson / Vocabulary tabs. Editors appear in admin mode. */
+/**
+ * One subject: header, Study / Practice / Fill the gap buttons and Lesson / Vocabulary / Sentences tabs.
+ * Editors appear in admin mode.
+ */
 @Composable
 fun SubjectScreen(
     subjectId: Long,
@@ -83,6 +88,7 @@ fun SubjectScreen(
     onBack: () -> Unit,
     onStudy: () -> Unit,
     onPractice: () -> Unit,
+    onCloze: () -> Unit,
 ) {
     val vm = appViewModel { SubjectViewModel(it.api) }
     LaunchedEffect(subjectId) { vm.load(subjectId) }
@@ -102,6 +108,8 @@ fun SubjectScreen(
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var vocabDialog by remember { mutableStateOf<VocabDialogState?>(null) }
     var bulkOpen by rememberSaveable { mutableStateOf(false) }
+    var sentenceDialog by remember { mutableStateOf<SentenceDialogState?>(null) }
+    var sentenceBulkOpen by rememberSaveable { mutableStateOf(false) }
     var confirmDiscard by remember { mutableStateOf(false) }
     val snackbar = remember { SnackbarHostState() }
 
@@ -109,7 +117,7 @@ fun SubjectScreen(
         actionError,
         snackbar,
         onShown = vm::clearActionError,
-        enabled = vocabDialog == null && !bulkOpen,
+        enabled = vocabDialog == null && !bulkOpen && sentenceDialog == null && !sentenceBulkOpen,
     )
 
     val goBack = { if (dirty) confirmDiscard = true else onBack() }
@@ -148,11 +156,12 @@ fun SubjectScreen(
                             )
                         }
                         Spacer(Modifier.size(4.dp))
-                        if (d.vocabulary.isEmpty()) {
+                        if (d.vocabulary.isEmpty() && d.sentences.isEmpty()) {
                             Button(onClick = {}, enabled = false, modifier = Modifier.fillMaxWidth()) {
-                                Text("No vocabulary yet")
+                                Text("Nothing to practise yet")
                             }
-                        } else {
+                        }
+                        if (d.vocabulary.isNotEmpty()) {
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                                 Button(onClick = onStudy, modifier = Modifier.weight(1f)) {
                                     Icon(Icons.Filled.PlayArrow, contentDescription = null)
@@ -165,8 +174,20 @@ fun SubjectScreen(
                                     Text("Practice")
                                 }
                             }
+                        }
+                        if (d.sentences.isNotEmpty()) {
+                            FilledTonalButton(onClick = onCloze, modifier = Modifier.fillMaxWidth()) {
+                                Icon(Icons.Filled.Create, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Fill the gap")
+                            }
+                        }
+                        if (d.vocabulary.isNotEmpty() || d.sentences.isNotEmpty()) {
                             Text(
-                                "${d.vocabulary.size} words · Study with flashcards, or practice by writing the translation.",
+                                listOfNotNull(
+                                    d.vocabulary.size.takeIf { it > 0 }?.let { "$it words" },
+                                    d.sentences.size.takeIf { it > 0 }?.let { "$it sentences" },
+                                ).joinToString(" · ") + practiceDescription(d.vocabulary.isNotEmpty(), d.sentences.isNotEmpty()),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -179,6 +200,11 @@ fun SubjectScreen(
                             selected = tab == 1,
                             onClick = { tab = 1 },
                             text = { Text("Vocabulary (${d.vocabulary.size})") },
+                        )
+                        Tab(
+                            selected = tab == 2,
+                            onClick = { tab = 2 },
+                            text = { Text("Sentences (${d.sentences.size})") },
                         )
                     }
 
@@ -200,6 +226,15 @@ fun SubjectScreen(
                             } else {
                                 EmptyState("There is no lesson for this subject yet.")
                             }
+                        } else if (tab == 2) {
+                            SentenceList(
+                                items = d.sentences,
+                                isAdmin = isAdmin,
+                                onAdd = { vm.clearActionError(); sentenceDialog = SentenceDialogState(null) },
+                                onBulk = { vm.clearActionError(); sentenceBulkOpen = true },
+                                onEdit = { vm.clearActionError(); sentenceDialog = SentenceDialogState(it) },
+                                onDelete = vm::deleteSentence,
+                            )
                         } else {
                             VocabularyList(
                                 items = d.vocabulary,
@@ -239,6 +274,29 @@ fun SubjectScreen(
         )
     }
 
+    sentenceDialog?.let { dialog ->
+        SentenceDialog(
+            initial = dialog.item,
+            busy = busy,
+            error = actionError,
+            onSave = { request ->
+                val close = { sentenceDialog = null }
+                if (dialog.item == null) vm.addSentence(request, close)
+                else vm.updateSentence(dialog.item.id, request, close)
+            },
+            onDismiss = { sentenceDialog = null },
+        )
+    }
+
+    if (sentenceBulkOpen) {
+        BulkSentenceDialog(
+            busy = busy,
+            error = actionError,
+            onImport = { vm.importSentences(it) { sentenceBulkOpen = false } },
+            onDismiss = { sentenceBulkOpen = false },
+        )
+    }
+
     if (confirmDiscard) {
         ConfirmDialog(
             title = "Discard changes?",
@@ -251,6 +309,14 @@ fun SubjectScreen(
 }
 
 private data class VocabDialogState(val item: Vocabulary?)
+
+private data class SentenceDialogState(val item: Sentence?)
+
+private fun practiceDescription(words: Boolean, sentences: Boolean): String = when {
+    words && sentences -> ". Study flashcards, write translations or fill the gaps in sentences."
+    words -> ". Study with flashcards, or practice by writing the translation."
+    else -> ". Fill the gaps to practise the words in context."
+}
 
 @Composable
 private fun LessonEditor(

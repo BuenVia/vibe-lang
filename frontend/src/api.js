@@ -63,6 +63,13 @@ export const api = {
     update: (id, body) => put(`/vocabulary/${id}`, body),
     remove: (id) => del(`/vocabulary/${id}`),
   },
+  sentences: {
+    list: (subjectId) => get(`/subjects/${subjectId}/sentences`),
+    create: (subjectId, body) => post(`/subjects/${subjectId}/sentences`, body),
+    createMany: (subjectId, items) => post(`/subjects/${subjectId}/sentences/bulk`, { items }),
+    update: (id, body) => put(`/sentences/${id}`, body),
+    remove: (id) => del(`/sentences/${id}`),
+  },
 };
 
 /** Returns a copy of `list` with the item at `index` moved by `delta` (-1 up, +1 down). */

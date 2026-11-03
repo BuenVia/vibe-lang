@@ -170,3 +170,19 @@ label.radio input, label.checkbox input { width: auto; margin-top: 0.3rem; }
 .flashcard-notes { color: var(--muted); font-style: italic; }
 .flashcard-actions { display: flex; justify-content: center; gap: 1rem; }
 .flashcard-actions button { min-width: 140px; padding: 0.65rem 1rem; }
+
+/* Fill the gap */
+.cloze-card { text-align: center; padding: 2rem 1.5rem; margin: 1rem 0; }
+.cloze-sentence { font-size: 1.5rem; line-height: 1.5; margin: 0 0 0.75rem; }
+.cloze-translation { color: var(--muted); font-style: italic; margin: 0 0 0.5rem; }
+.cloze-hint { color: var(--primary); font-weight: 600; margin: 0; }
+.cloze-blank { color: var(--primary); font-weight: 600; letter-spacing: 0.05em; }
+.cloze-answer { color: var(--primary); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+.cloze-answer.ok { color: var(--success); }
+.cloze-answer.bad { color: var(--danger); }
+.cloze-inputs { display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1rem; }
+.cloze-feedback { display: flex; flex-direction: column; gap: 0.35rem; }
+.cloze-feedback.ok { border-color: var(--success); background: color-mix(in srgb, var(--success) 10%, var(--surface)); }
+.cloze-feedback.bad { border-color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, var(--surface)); }
+.cloze-explanation { font-style: italic; color: var(--muted); }
+.cloze-review { text-align: left; max-width: 480px; margin: 0 auto 1rem; }

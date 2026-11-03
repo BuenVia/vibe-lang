@@ -36,6 +36,7 @@ data class Subject(
     val position: Int,
     val hasLesson: Boolean,
     val vocabularyCount: Long,
+    val sentenceCount: Long = 0,
 )
 
 @Serializable
@@ -53,6 +54,18 @@ data class Vocabulary(
     val term: String,
     val translation: String,
     val notes: String? = null,
+    val position: Int,
+)
+
+/** A sentence with gaps written as {{answer}}, for Fill the gap. See ui/practice/Cloze.kt. */
+@Serializable
+data class Sentence(
+    val id: Long,
+    val subjectId: Long,
+    val text: String,
+    val translation: String? = null,
+    val hint: String? = null,
+    val explanation: String? = null,
     val position: Int,
 )
 
@@ -75,6 +88,17 @@ data class VocabularyRequest(val term: String, val translation: String, val note
 
 @Serializable
 data class BulkVocabularyRequest(val items: List<VocabularyRequest>)
+
+@Serializable
+data class SentenceRequest(
+    val text: String,
+    val translation: String? = null,
+    val hint: String? = null,
+    val explanation: String? = null,
+)
+
+@Serializable
+data class BulkSentenceRequest(val items: List<SentenceRequest>)
 
 @Serializable
 data class ReorderRequest(val ids: List<Long>)
