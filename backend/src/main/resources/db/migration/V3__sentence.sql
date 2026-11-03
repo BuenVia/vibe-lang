@@ -11,41 +11,48 @@ create table sentence (
 );
 create index idx_sentence_subject on sentence (subject_id);
 
--- Sample sentences for the Spanish B2 subjects.
-insert into sentence (subject_id, text, translation, hint, explanation, position) values
-    (2, 'Si {{tuviera/tuviese}} más tiempo, aprendería a tocar la guitarra.',
+-- Sample sentences for the sample Spanish B2 subjects from V2. Subjects are matched by course and title, not
+-- by id, so a database whose content has changed since V2 (e.g. production) simply gets no sample sentences.
+insert into sentence (subject_id, text, translation, hint, explanation, position)
+select s.id, v.text, v.translation, v.hint, v.explanation, v.position
+from (values
+    ('Imperfecto de subjuntivo', 'Si {{tuviera/tuviese}} más tiempo, aprendería a tocar la guitarra.',
         'If I had more time, I would learn to play the guitar.', 'tener',
         'Si + imperfecto de subjuntivo + condicional: a hypothetical present condition.', 1),
-    (2, 'Me pidió que la {{llamara/llamase}} al llegar.',
+    ('Imperfecto de subjuntivo', 'Me pidió que la {{llamara/llamase}} al llegar.',
         'She asked me to call her when I arrived.', 'llamar',
         'Pedir que + subjuntivo. The main verb is in the past, so the subjunctive is imperfecto.', 2),
-    (2, 'Habla como si lo {{supiera/supiese}} todo.',
+    ('Imperfecto de subjuntivo', 'Habla como si lo {{supiera/supiese}} todo.',
         'He talks as if he knew everything.', 'saber',
         'Como si is always followed by imperfecto (or pluscuamperfecto) de subjuntivo.', 3),
-    (2, 'Ojalá {{pudiera/pudiese}} ir contigo, pero tengo que trabajar.',
+    ('Imperfecto de subjuntivo', 'Ojalá {{pudiera/pudiese}} ir contigo, pero tengo que trabajar.',
         'I wish I could go with you, but I have to work.', 'poder',
         'Ojalá + imperfecto de subjuntivo: a wish that is unlikely or impossible now.', 4),
-    (2, 'Era necesario que todos {{estuvieran/estuviesen}} de acuerdo.',
+    ('Imperfecto de subjuntivo', 'Era necesario que todos {{estuvieran/estuviesen}} de acuerdo.',
         'It was necessary for everyone to agree.', 'estar',
         'Impersonal expression of necessity in the past + imperfecto de subjuntivo.', 5),
-    (2, 'Si {{fuera/fuese}} tú, no {{diría}} nada.',
+    ('Imperfecto de subjuntivo', 'Si {{fuera/fuese}} tú, no {{diría}} nada.',
         'If I were you, I wouldn''t say anything.', 'ser · decir',
         'Two gaps: imperfecto de subjuntivo in the si-clause, condicional in the result.', 6),
-    (3, '{{Aunque}} llueva mañana, iremos a la playa.',
+    ('Conectores concesivos', '{{Aunque}} llueva mañana, iremos a la playa.',
         'Even if it rains tomorrow, we''ll go to the beach.', 'even if',
         'Aunque + subjuntivo: the rain is only a possibility.', 1),
-    (3, 'Aunque {{llueve}}, vamos a salir.',
+    ('Conectores concesivos', 'Aunque {{llueve}}, vamos a salir.',
         'Although it is raining, we are going out.', 'llover',
         'Aunque + indicativo: it is actually raining (a fact).', 2),
-    (3, 'Por mucho que {{estudies}}, no aprobarás sin practicar.',
+    ('Conectores concesivos', 'Por mucho que {{estudies}}, no aprobarás sin practicar.',
         'However much you study, you won''t pass without practising.', 'estudiar',
         'Por mucho que + subjuntivo when the amount is open or hypothetical.', 3),
-    (3, 'El plan era bueno; {{sin embargo}}, nadie lo apoyó.',
+    ('Conectores concesivos', 'El plan era bueno; {{sin embargo}}, nadie lo apoyó.',
         'The plan was good; however, nobody supported it.', 'however',
         'Sin embargo links two independent sentences and usually goes between commas or after a semicolon.', 4),
-    (3, '{{A pesar de que}} estaba cansado, terminó el informe.',
+    ('Conectores concesivos', '{{A pesar de que}} estaba cansado, terminó el informe.',
         'Even though he was tired, he finished the report.', 'despite the fact that',
         'A pesar de que + indicativo for a known fact.', 5),
-    (3, '{{Si bien}} el precio es alto, la calidad lo justifica.',
+    ('Conectores concesivos', '{{Si bien}} el precio es alto, la calidad lo justifica.',
         'Although the price is high, the quality justifies it.', 'although (formal)',
-        'Si bien is formal and takes the indicative.', 6);
+        'Si bien is formal and takes the indicative.', 6)
+) as v (subject_title, text, translation, hint, explanation, position)
+join subject s on s.title = v.subject_title
+join category c on c.id = s.category_id
+join course co on co.id = c.course_id and co.language = 'Spanish' and co.level = 'B2';
