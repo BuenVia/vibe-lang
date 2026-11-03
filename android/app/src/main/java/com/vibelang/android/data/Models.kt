@@ -72,10 +72,10 @@ data class Sentence(
 // Spaced repetition. Timestamps are ISO-8601 strings.
 
 @Serializable
-enum class ReviewMode { STUDY, PRACTICE, CLOZE, REVIEW, SPEAK }
+enum class ReviewMode { STUDY, PRACTICE, CLOZE, REVIEW, SPEAK, TRANSLATE }
 
 @Serializable
-enum class ReviewOutcome { PROMOTED, SLOW, SAME_DAY, LAPSED }
+enum class ReviewOutcome { PROMOTED, SLOW, NEARLY, SAME_DAY, LAPSED }
 
 @Serializable
 data class ReviewResult(
@@ -155,6 +155,8 @@ data class ReviewRequest(
     val responseMs: Int,
     val thresholdMs: Int? = null,
     val zone: String? = null,
+    /** A self-graded "nearly": counts as right but doesn't move the item up. */
+    val nearly: Boolean? = null,
 )
 
 @Serializable

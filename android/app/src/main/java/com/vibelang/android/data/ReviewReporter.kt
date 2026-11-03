@@ -18,6 +18,7 @@ class ReviewReporter(private val api: VibeLangApi) {
         correct: Boolean,
         responseMs: Long,
         thresholdMs: Int?,
+        nearly: Boolean = false,
     ): ReviewResult? = try {
         api.review(
             ReviewRequest(
@@ -28,6 +29,7 @@ class ReviewReporter(private val api: VibeLangApi) {
                 responseMs = responseMs.coerceIn(0, Int.MAX_VALUE.toLong()).toInt(),
                 thresholdMs = thresholdMs,
                 zone = currentZone(),
+                nearly = nearly.takeIf { it },
             ),
         )
     } catch (e: CancellationException) {

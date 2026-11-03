@@ -31,6 +31,22 @@ export const displayAnswer = (answer) =>
     .filter(Boolean)
     .join(' / ');
 
+/**
+ * Every full sentence the gaps' alternatives allow, first alternatives first ("Si {{fuera/fuese}} tú" gives
+ * "Si fuera tú" and "Si fuese tú"), capped at `limit`.
+ */
+export function expansions(text, limit = 32) {
+  let results = [''];
+  for (const p of parseCloze(text)) {
+    if (p.type === 'text') results = results.map((r) => r + p.text);
+    else {
+      const alts = p.answer.split('/').map((a) => a.trim()).filter(Boolean);
+      results = results.flatMap((r) => alts.map((a) => r + a)).slice(0, limit);
+    }
+  }
+  return results;
+}
+
 /** The sentence with each gap filled by its first alternative. */
 export const solvedSentence = (text) =>
   parseCloze(text)
@@ -41,7 +57,7 @@ export const solvedSentence = (text) =>
 
 export const Verdict = { CORRECT: 'correct', ACCENTS: 'accents', INCORRECT: 'incorrect' };
 
-const normalize = (text) =>
+export const normalize = (text) =>
   text
     .normalize('NFC')
     .toLowerCase()
@@ -50,7 +66,7 @@ const normalize = (text) =>
     .trim()
     .replace(/\s+/g, ' ');
 
-const stripAccents = (text) => text.normalize('NFD').replace(/\p{M}+/gu, '');
+export const stripAccents = (text) => text.normalize('NFD').replace(/\p{M}+/gu, '');
 
 function acceptedAnswers(expected) {
   const alternatives = [expected, ...expected.split(/[/;]/)];

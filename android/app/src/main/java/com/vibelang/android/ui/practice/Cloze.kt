@@ -38,6 +38,24 @@ object Cloze {
     /** How a gap's answer is shown to the learner: alternatives spaced out, "tuviera / tuviese". */
     fun display(answer: String): String = answer.split('/').map { it.trim() }.filter { it.isNotEmpty() }.joinToString(" / ")
 
+    /**
+     * Every full sentence the gaps' alternatives allow, first alternatives first: "Si {{fuera/fuese}} tú" gives
+     * "Si fuera tú" and "Si fuese tú". Capped at [limit] so a sentence with many alternatives stays cheap.
+     */
+    fun expansions(text: String, limit: Int = 32): List<String> {
+        var results = listOf("")
+        for (part in parse(text)) {
+            results = when (part) {
+                is Part.Text -> results.map { it + part.text }
+                is Part.Gap -> {
+                    val alternatives = part.answer.split('/').map { it.trim() }.filter { it.isNotEmpty() }
+                    results.flatMap { prefix -> alternatives.map { prefix + it } }.take(limit)
+                }
+            }
+        }
+        return results
+    }
+
     /** The full sentence with every gap filled by its first alternative, e.g. for reading it back. */
     fun solved(text: String): String = parse(text).joinToString("") {
         when (it) {

@@ -6,6 +6,7 @@ import SubjectPage from './pages/SubjectPage.jsx';
 import StudyPage from './pages/StudyPage.jsx';
 import ClozePage from './pages/ClozePage.jsx';
 import ReviewPage from './pages/ReviewPage.jsx';
+import TranslatePage from './pages/TranslatePage.jsx';
 import SettingsPage from './pages/SettingsPage.jsx';
 import AdminPage from './pages/admin/AdminPage.jsx';
 
@@ -54,6 +55,7 @@ export default function App() {
           <Route path="/subjects/:id" element={<SubjectPage />} />
           <Route path="/subjects/:id/study" element={<StudyPage />} />
           <Route path="/subjects/:id/cloze" element={<ClozePage />} />
+          <Route path="/subjects/:id/translate" element={<TranslatePage />} />
           <Route path="/subjects/:id/flashcards" element={<OldFlashcardsRedirect />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/admin/*" element={isAdmin ? <AdminPage /> : <Navigate to="/settings" replace />} />

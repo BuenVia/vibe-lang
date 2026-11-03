@@ -35,6 +35,7 @@ import com.vibelang.android.ui.study.StudyScreen
 import com.vibelang.android.ui.path.PathScreen
 import com.vibelang.android.ui.practice.ClozeScreen
 import com.vibelang.android.ui.practice.PracticeScreen
+import com.vibelang.android.ui.practice.TranslateScreen
 import com.vibelang.android.ui.review.ReviewScreen
 import com.vibelang.android.ui.settings.SettingsScreen
 import com.vibelang.android.ui.subject.SubjectScreen
@@ -60,6 +61,8 @@ import kotlin.reflect.KClass
 @Serializable data class ClozeRoute(val subjectId: Long)
 
 @Serializable data object ReviewRoute
+
+@Serializable data class TranslateRoute(val subjectId: Long)
 
 private data class TopLevel(val label: String, val icon: ImageVector, val route: Any, val routeClass: KClass<*>)
 
@@ -138,6 +141,7 @@ fun VibeLangApp() {
                     onStudy = { navController.navigate(StudyRoute(id)) },
                     onPractice = { navController.navigate(PracticeRoute(id)) },
                     onCloze = { navController.navigate(ClozeRoute(id)) },
+                    onTranslate = { navController.navigate(TranslateRoute(id)) },
                 )
             }
             composable<StudyRoute> { entry ->
@@ -150,6 +154,13 @@ fun VibeLangApp() {
             composable<PracticeRoute> { entry ->
                 PracticeScreen(
                     subjectId = entry.toRoute<PracticeRoute>().subjectId,
+                    appVm = appVm,
+                    onBack = { navController.popBackStack() },
+                )
+            }
+            composable<TranslateRoute> { entry ->
+                TranslateScreen(
+                    subjectId = entry.toRoute<TranslateRoute>().subjectId,
                     appVm = appVm,
                     onBack = { navController.popBackStack() },
                 )

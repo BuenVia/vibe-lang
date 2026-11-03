@@ -63,6 +63,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.vibelang.android.data.Lesson
 import com.vibelang.android.data.Sentence
+import com.vibelang.android.ui.practice.TranslateSession
 import com.vibelang.android.data.Vocabulary
 import com.vibelang.android.data.VocabularyRequest
 import com.vibelang.android.data.blankToNull
@@ -89,6 +90,7 @@ fun SubjectScreen(
     onStudy: () -> Unit,
     onPractice: () -> Unit,
     onCloze: () -> Unit,
+    onTranslate: () -> Unit,
 ) {
     val vm = appViewModel { SubjectViewModel(it.api) }
     LaunchedEffect(subjectId) { vm.load(subjectId) }
@@ -176,10 +178,16 @@ fun SubjectScreen(
                             }
                         }
                         if (d.sentences.isNotEmpty()) {
-                            FilledTonalButton(onClick = onCloze, modifier = Modifier.fillMaxWidth()) {
-                                Icon(Icons.Filled.Create, contentDescription = null)
-                                Spacer(Modifier.width(8.dp))
-                                Text("Fill the gap")
+                            val canTranslate = TranslateSession.usable(d.sentences).isNotEmpty()
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                                FilledTonalButton(onClick = onCloze, modifier = Modifier.weight(1f)) {
+                                    Icon(Icons.Filled.Create, contentDescription = null)
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Fill the gap")
+                                }
+                                if (canTranslate) {
+                                    FilledTonalButton(onClick = onTranslate, modifier = Modifier.weight(1f)) { Text("Translate") }
+                                }
                             }
                         }
                         if (d.vocabulary.isNotEmpty() || d.sentences.isNotEmpty()) {

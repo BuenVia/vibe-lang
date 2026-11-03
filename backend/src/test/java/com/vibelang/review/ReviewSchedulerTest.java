@@ -70,4 +70,13 @@ class ReviewSchedulerTest {
     void wrongAnswerTheSameDayStillLapses() {
         assertEquals(Outcome.LAPSED, ReviewScheduler.schedule(3, days(4), true, false, 800, THRESHOLD, NOW).outcome());
     }
+
+    @Test
+    void nearlyIsCorrectButNeverPromotes() {
+        assertEquals(new Result(3, days(1), Outcome.NEARLY),
+                ReviewScheduler.schedule(3, days(4), false, true, true, 800, null, NOW));
+        // Wrong still wins over "nearly", and a same-day repeat is still a same-day repeat.
+        assertEquals(Outcome.LAPSED, ReviewScheduler.schedule(3, NOW, false, false, true, 800, null, NOW).outcome());
+        assertEquals(Outcome.SAME_DAY, ReviewScheduler.schedule(3, days(4), true, true, true, 800, null, NOW).outcome());
+    }
 }

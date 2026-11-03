@@ -14,14 +14,15 @@ import java.time.Instant;
  *   <li><b>Correct and fast:</b> up one box (max {@value #MAX_BOX}) and due after that box's interval: 1, 2, 4, 8
  *       or 16 days, and 32 days for an item that was already in the top box.</li>
  * </ul>
- * A null threshold switches the speed rule off: every correct answer counts as fast.
+ * A null threshold switches the speed rule off: every correct answer counts as fast. A "nearly" answer (a
+ * self-graded small slip, from Translate) is correct but never promotes: the box stays and it is due tomorrow.
  */
 public final class ReviewScheduler {
 
     public static final int MAX_BOX = 5;
     private static final Duration ONE_DAY = Duration.ofDays(1);
 
-    public enum Outcome { PROMOTED, SLOW, SAME_DAY, LAPSED }
+    public enum Outcome { PROMOTED, SLOW, NEARLY, SAME_DAY, LAPSED }
 
     public record Result(int box, Instant dueAt, Outcome outcome) {}
 
@@ -34,6 +35,11 @@ public final class ReviewScheduler {
      */
     public static Result schedule(int box, Instant dueAt, boolean reviewedToday, boolean correct, long responseMs,
                                   Integer thresholdMs, Instant now) {
+        return schedule(box, dueAt, reviewedToday, correct, false, responseMs, thresholdMs, now);
+    }
+
+    public static Result schedule(int box, Instant dueAt, boolean reviewedToday, boolean correct, boolean nearly,
+                                  long responseMs, Integer thresholdMs, Instant now) {
         if (!correct) {
             return new Result(1, now, Outcome.LAPSED);
         }
@@ -41,6 +47,9 @@ public final class ReviewScheduler {
             Instant tomorrow = now.plus(ONE_DAY);
             Instant due = dueAt != null && dueAt.isAfter(tomorrow) ? dueAt : tomorrow;
             return new Result(box, due, Outcome.SAME_DAY);
+        }
+        if (nearly) {
+            return new Result(box, now.plus(ONE_DAY), Outcome.NEARLY);
         }
         if (thresholdMs != null && responseMs > thresholdMs) {
             return new Result(box, now.plus(ONE_DAY), Outcome.SLOW);

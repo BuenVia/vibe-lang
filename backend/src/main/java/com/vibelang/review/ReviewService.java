@@ -67,6 +67,7 @@ public class ReviewService {
                 isNew ? null : state.getDueAt(),
                 DueSelector.sameDay(state.getLastReviewedAt(), now, zone),
                 request.correct(),
+                Boolean.TRUE.equals(request.nearly()),
                 request.responseMs(),
                 request.thresholdMs(),
                 now);

@@ -31,7 +31,7 @@ export function currentZone() {
 }
 
 /** Best effort: a failed report is logged and otherwise ignored, so practice never stops. */
-export function reportReview({ mode, vocabularyId = null, sentenceId = null, correct, responseMs, thresholdMs: limit }) {
+export function reportReview({ mode, vocabularyId = null, sentenceId = null, correct, responseMs, thresholdMs: limit, nearly = false }) {
   return api.reviews
     .report({
       vocabularyId,
@@ -41,6 +41,7 @@ export function reportReview({ mode, vocabularyId = null, sentenceId = null, cor
       responseMs: Math.max(0, Math.round(responseMs)),
       thresholdMs: limit,
       zone: currentZone(),
+      nearly: nearly || null,
     })
     .catch((e) => {
       console.warn("Couldn't report review", e);

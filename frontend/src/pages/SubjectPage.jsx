@@ -49,6 +49,11 @@ export default function SubjectPage() {
               Fill the gap ({sentences.length})
             </Link>
           )}
+          {sentences.some((s) => s.translation) && (
+            <Link className="button" to={`/subjects/${id}/translate`}>
+              Translate
+            </Link>
+          )}
           {vocabulary.length > 0 && (
             <Link className="button primary" to={`/subjects/${id}/study`}>
               Study {vocabulary.length} flashcards
