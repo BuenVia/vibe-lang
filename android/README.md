@@ -13,7 +13,7 @@ From the command line: `./gradlew installDebug` (needs `JAVA_HOME` set to JDK 17
 The app talks to `https://vibe-lang-api.onrender.com/` by default. To use a local backend instead:
 
 ```bash
-./gradlew installDebug -Pvibelang.apiBaseUrl=http://10.0.2.2:8080/   # emulator → your computer's localhost
+  ./gradlew installDebug -Pvibelang.apiBaseUrl=http://10.0.2.2:8080/   # emulator → your computer's localhost
 ```
 
 or change `vibelang.apiBaseUrl` in `gradle.properties`. Debug builds allow plain `http` to `10.0.2.2` and
