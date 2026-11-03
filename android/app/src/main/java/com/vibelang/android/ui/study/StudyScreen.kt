@@ -52,7 +52,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewModelScope
 import com.vibelang.android.data.CardFront
+import com.vibelang.android.data.AnswerKind
+import com.vibelang.android.data.PromptTimer
+import com.vibelang.android.data.ReviewMode
+import com.vibelang.android.data.ReviewReporter
 import com.vibelang.android.data.Subject
 import com.vibelang.android.data.VibeLangApi
 import com.vibelang.android.data.Vocabulary
@@ -69,11 +74,20 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.launch
 import kotlin.math.abs
 
 data class StudyData(val subject: Subject, val vocabulary: List<Vocabulary>)
 
-class StudyViewModel(private val api: VibeLangApi) : LoadViewModel<Long, StudyData>() {
+class StudyViewModel(
+    private val api: VibeLangApi,
+    private val reviews: ReviewReporter,
+) : LoadViewModel<Long, StudyData>() {
+    private val timer = PromptTimer()
+
+    /** How long the learner took to flip the current card the first time. */
+    private var flipMs: Long? = null
+
     override suspend fun fetch(key: Long): StudyData = coroutineScope {
         val subject = async { api.subject(key) }
         val vocabulary = async { api.vocabulary(key) }
@@ -85,6 +99,8 @@ class StudyViewModel(private val api: VibeLangApi) : LoadViewModel<Long, StudyDa
 
     fun start(cards: List<Vocabulary>, shuffle: Boolean) {
         _session.value = StudySession.start(cards, shuffle, round = (_session.value?.round ?: 0) + 1)
+        timer.reset()
+        flipMs = null
     }
 
     /** Starts the first session once the vocabulary has loaded; later reloads keep the current session. */
@@ -92,14 +108,34 @@ class StudyViewModel(private val api: VibeLangApi) : LoadViewModel<Long, StudyDa
         if (_session.value == null) start(cards, shuffle)
     }
 
-    fun flip() = _session.value?.let { _session.value = it.flip() }
-    fun gotIt() = _session.value?.let { _session.value = it.gotIt() }
-    fun again() = _session.value?.let { _session.value = it.again() }
+    fun flip() = _session.value?.let {
+        if (!it.flipped && flipMs == null) flipMs = timer.elapsedMs()
+        _session.value = it.flip()
+    }
+
+    fun gotIt(thresholdMs: Int?) = answer(correct = true, thresholdMs) { it.gotIt() }
+    fun again(thresholdMs: Int?) = answer(correct = false, thresholdMs) { it.again() }
+
+    /** Moves on and reports the first answer for each card; the time counted is the time to flip it. */
+    private fun answer(correct: Boolean, thresholdMs: Int?, move: (StudySession) -> StudySession) {
+        val session = _session.value ?: return
+        val card = session.current ?: return
+        val ms = flipMs ?: timer.elapsedMs()
+        _session.value = move(session)
+        if (timer.firstAttempt("v${card.id}")) {
+            viewModelScope.launch {
+                reviews.report(ReviewMode.STUDY, vocabularyId = card.id, correct = correct, responseMs = ms,
+                    thresholdMs = thresholdMs)
+            }
+        }
+        flipMs = null
+        timer.restart()
+    }
 }
 
 @Composable
 fun StudyScreen(subjectId: Long, appVm: AppViewModel, onBack: () -> Unit) {
-    val vm = appViewModel { StudyViewModel(it.api) }
+    val vm = appViewModel { StudyViewModel(it.api, it.reviews) }
     LaunchedEffect(subjectId) { vm.load(subjectId) }
 
     val state by vm.state.collectAsStateWithLifecycle()
@@ -165,8 +201,8 @@ fun StudyScreen(subjectId: Long, appVm: AppViewModel, onBack: () -> Unit) {
                         session = s,
                         termFirst = cardFront == CardFront.TERM,
                         onFlip = vm::flip,
-                        onGotIt = vm::gotIt,
-                        onAgain = vm::again,
+                        onGotIt = { vm.gotIt(settings?.thresholdMs(AnswerKind.FLASHCARD)) },
+                        onAgain = { vm.again(settings?.thresholdMs(AnswerKind.FLASHCARD)) },
                     )
                 }
             }

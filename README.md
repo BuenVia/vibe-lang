@@ -61,6 +61,12 @@ Vite proxies `/api` to the backend.
   plus the translation and an optional hint (e.g. the infinitive). You type the missing word(s); the rule's
   explanation is shown after you check. Gaps are marked in the sentence text with double braces, and `/`
   separates accepted alternatives: `Si {{tuviera/tuviese}} tiempo, {{iría}}.`
+- **Review** (web and Android) is spaced repetition across the whole course. Every answer in Study, Practice,
+  Fill the gap and Review moves the item through Leitner boxes 1–5 (due again after 1, 2, 4, 8, 16 days). A
+  wrong answer sends it back to box 1, and with the **speed rule** a right answer only moves it up when it was
+  given within the time limit (5 s for a typed answer by default, 3 s to flip a flashcard). The learning path
+  shows "Today's review" (due and new items) and a progress bar per subject. The time limit, the speed rule and
+  the number of new items per day are in Settings.
 - **Admin mode** is turned on in **Settings**. It adds an *Admin* section where you create, edit, delete and
   reorder courses, categories and subjects. It also adds editors on each subject page: a Markdown lesson editor
   with live preview, inline vocabulary editing with bulk import (`term | translation | notes`, one per line), and
@@ -73,8 +79,8 @@ admin mode only hides the editing features and does not protect them.
 
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md): deploying the database to Supabase and the API and web app to Render
 - [docs/ANDROID_API_GUIDE.md](docs/ANDROID_API_GUIDE.md): app purpose and full API reference for a Kotlin/Android client
-- [docs/ROADMAP.md](docs/ROADMAP.md): designs for the next learning features (spaced repetition, speaking mode,
-  sentence translation and a mistakes log)
+- [docs/ROADMAP.md](docs/ROADMAP.md): designs for the learning features (spaced repetition is done; speaking mode,
+  sentence translation and a mistakes log are next)
 
 ## API
 
@@ -96,5 +102,8 @@ admin mode only hides the editing features and does not protect them.
 | GET, POST | `/api/subjects/{id}/sentences` | `text` must contain a `{{gap}}` |
 | POST | `/api/subjects/{id}/sentences/bulk` | body `{ "items": [...] }` |
 | PUT, DELETE | `/api/sentences/{id}` | |
+| POST | `/api/reviews` | report one answer (spaced repetition) |
+| GET | `/api/courses/{courseId}/due` | `?newLimit=10&zone=Europe/Madrid&limit=50` |
+| GET | `/api/courses/{courseId}/progress` | boxes per subject; `?zone=…` |
 
 Errors are returned as RFC 7807 problem details (`{ "status", "title", "detail" }`).

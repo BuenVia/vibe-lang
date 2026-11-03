@@ -11,12 +11,12 @@ No AI or paid APIs: everything runs on the server's own logic or on free on-devi
 
 | # | Feature | Main goal | Depends on |
 |---|---|---|---|
-| 1 | Spaced repetition with a speed rule | B | — (works better once 3 and 4 exist) |
+| 1 | Spaced repetition with a speed rule (**done**) | B | — |
 | 2 | Speaking mode (speech input + text-to-speech) | B | — |
 | 3 | Full-sentence translation with diff and self-grading | A, B (writing) | — |
 | 4 | Mistakes log | A | 3 (reuses the diff) |
 
-Suggested order: **1 → 2 → 3 → 4**.
+Suggested order: **1 → 2 → 3 → 4**. Section 1 is built; the next one is speaking mode (§2).
 
 ## Context for a future session
 
@@ -31,14 +31,22 @@ Suggested order: **1 → 2 → 3 → 4**.
   `StudySession.kt` (tests in `android/app/src/test/...`). The web pages keep the same logic in React state.
 - **No authentication and a single learner.** Progress can be stored on the server without a `user_id` for now.
   If accounts are added later, add a `user_id` column to the progress tables.
-- **Migrations** are Flyway files in `backend/src/main/resources/db/migration/` (`V1`–`V3` exist; continue at `V4`).
-- **Builds:** `source env.sh`; then `mvn -q compile` in `backend/`, `./gradlew testDebugUnitTest assembleDebug` in
-  `android/`, and `npm run build` in `frontend/`. The backend has no tests yet. Add some with the first piece of
-  real logic (the scheduler below).
+- **Migrations** are Flyway files in `backend/src/main/resources/db/migration/` (`V1`–`V4` exist; continue at `V5`).
+  Production's content differs from the V2 sample data, so never refer to rows by hard-coded id in a migration.
+- **Spaced repetition** is in place (§1): new practice modes should time each prompt and report the first attempt
+  with `POST /api/reviews`. On Android use `PromptTimer` + `ReviewReporter`; on the web `usePromptTimer` +
+  `reportReview` from `frontend/src/reviews.jsx`. Add a value to `ReviewMode` (backend and Android) for each new mode.
+- **Builds:** `source env.sh`; then `mvn -q test` in `backend/`, `./gradlew testDebugUnitTest assembleDebug` in
+  `android/`, and `npm run build` in `frontend/`.
 
 ---
 
 ## 1. Spaced repetition with a speed rule
+
+> **Status: built.** Differences from the design below: one configurable time limit for typed answers (default
+> 5 s, +2 s per extra gap) and a fixed 3 s for flipping flashcards; an extra rule that a second correct answer on
+> the same day never promotes (`SAME_DAY`), so cramming can't skip boxes; and `/due` returns
+> `{ dueCount, newCount, items }`. See `docs/ANDROID_API_GUIDE.md` §5.7 for the API as built.
 
 ### Why
 

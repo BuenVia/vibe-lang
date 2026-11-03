@@ -35,6 +35,7 @@ import com.vibelang.android.ui.study.StudyScreen
 import com.vibelang.android.ui.path.PathScreen
 import com.vibelang.android.ui.practice.ClozeScreen
 import com.vibelang.android.ui.practice.PracticeScreen
+import com.vibelang.android.ui.review.ReviewScreen
 import com.vibelang.android.ui.settings.SettingsScreen
 import com.vibelang.android.ui.subject.SubjectScreen
 import kotlinx.serialization.Serializable
@@ -57,6 +58,8 @@ import kotlin.reflect.KClass
 @Serializable data class PracticeRoute(val subjectId: Long)
 
 @Serializable data class ClozeRoute(val subjectId: Long)
+
+@Serializable data object ReviewRoute
 
 private data class TopLevel(val label: String, val icon: ImageVector, val route: Any, val routeClass: KClass<*>)
 
@@ -106,6 +109,7 @@ fun VibeLangApp() {
                     appVm = appVm,
                     onOpenSubject = { navController.navigate(SubjectRoute(it)) },
                     onEditOrder = { navController.navigateToTab(AdminRoute(AdminTab.SUBJECTS), restore = false) },
+                    onReview = { navController.navigate(ReviewRoute) },
                 )
             }
             composable<CategoriesRoute> {
@@ -149,6 +153,9 @@ fun VibeLangApp() {
                     appVm = appVm,
                     onBack = { navController.popBackStack() },
                 )
+            }
+            composable<ReviewRoute> {
+                ReviewScreen(appVm = appVm, onBack = { navController.popBackStack() })
             }
             composable<ClozeRoute> { entry ->
                 ClozeScreen(

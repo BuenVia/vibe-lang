@@ -27,6 +27,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.vibelang.android.BuildConfig
 import com.vibelang.android.data.CardFront
 import com.vibelang.android.data.Mode
+import com.vibelang.android.data.Settings
 import com.vibelang.android.ui.AppViewModel
 import com.vibelang.android.ui.UiState
 import com.vibelang.android.ui.components.CourseTopBar
@@ -111,6 +112,52 @@ fun SettingsScreen(appVm: AppViewModel) {
                     Text("Shuffle words", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
                     Switch(checked = s.shuffleCards, onCheckedChange = null)
                 }
+            }
+
+            Section("Review") {
+                Text(
+                    "Every answer in Study, Practice, Fill the gap and Review moves the item through boxes 1–5. " +
+                        "Wrong answers go back to box 1; right answers move up a box and come back after 1, 2, 4, 8 " +
+                        "or 16 days.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .toggleable(value = s.speedRule, role = Role.Switch, onValueChange = { appVm.setSpeedRule(it) })
+                        .padding(vertical = 8.dp),
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Speed rule", style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            "Only move an item up when you answer within the time limit (flashcards: flip within " +
+                                "${Settings.FLASHCARD_MS / 1000} s).",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(checked = s.speedRule, onCheckedChange = null)
+                }
+                if (s.speedRule) {
+                    SelectField(
+                        label = "Time limit for typed answers",
+                        options = Settings.ANSWER_SECONDS_OPTIONS,
+                        selected = s.answerSeconds,
+                        onSelect = { appVm.setAnswerSeconds(it) },
+                        optionLabel = { "$it seconds (+${Settings.EXTRA_GAP_MS / 1000} s per extra gap)" },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                SelectField(
+                    label = "New items per day",
+                    options = Settings.NEW_PER_DAY_OPTIONS,
+                    selected = s.newPerDay,
+                    onSelect = { appVm.setNewPerDay(it) },
+                    optionLabel = { if (it == 0) "None (only review what's due)" else "$it" },
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
 
             Section("About") {

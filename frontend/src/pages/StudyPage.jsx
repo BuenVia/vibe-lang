@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../api.js';
 import { useSettings } from '../context/SettingsContext.jsx';
 import { useLoad } from '../useLoad.js';
 import { ErrorMessage, Loading } from '../components/Status.jsx';
+import { reportReview, thresholdMs, usePromptTimer } from '../reviews.jsx';
 
 function shuffle(list) {
   const copy = [...list];
@@ -27,6 +28,8 @@ export default function StudyPage() {
   const [flipped, setFlipped] = useState(false);
   const [missed, setMissed] = useState(new Set());
   const [total, setTotal] = useState(0);
+  const timer = usePromptTimer();
+  const flipMs = useRef(null); // time to the first flip of the current card
 
   const start = useCallback(
     (cards) => {
@@ -34,7 +37,10 @@ export default function StudyPage() {
       setTotal(cards.length);
       setMissed(new Set());
       setFlipped(false);
+      timer.reset();
+      flipMs.current = null;
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [settings.shuffleCards],
   );
 
@@ -44,17 +50,48 @@ export default function StudyPage() {
 
   const current = queue[0];
 
-  const gotIt = useCallback(() => {
-    setQueue((q) => q.slice(1));
-    setFlipped(false);
+  const flip = useCallback(() => {
+    setFlipped((f) => {
+      if (!f && flipMs.current == null) flipMs.current = timer.elapsedMs();
+      return !f;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /** Reports the first answer for each card; the time counted is the time to flip it. */
+  const report = (card, correct) => {
+    if (!timer.firstAttempt(`v${card.id}`)) return;
+    reportReview({
+      mode: 'STUDY',
+      vocabularyId: card.id,
+      correct,
+      responseMs: flipMs.current ?? timer.elapsedMs(),
+      thresholdMs: thresholdMs(settings, 'flashcard'),
+    });
+  };
+
+  const moveOn = () => {
+    setFlipped(false);
+    flipMs.current = null;
+    timer.restart();
+  };
+
+  const gotIt = useCallback(() => {
+    if (!current) return;
+    report(current, true);
+    setQueue((q) => q.slice(1));
+    moveOn();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current, settings]);
 
   const again = useCallback(() => {
     if (!current) return;
+    report(current, false);
     setMissed((m) => new Set(m).add(current.id));
     setQueue((q) => [...q.slice(1), q[0]]);
-    setFlipped(false);
-  }, [current]);
+    moveOn();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current, settings]);
 
   useEffect(() => {
     function onKey(e) {
@@ -62,13 +99,13 @@ export default function StudyPage() {
       if (['INPUT', 'SELECT', 'TEXTAREA', 'BUTTON'].includes(e.target.tagName)) return;
       if (e.code === 'Space') {
         e.preventDefault();
-        setFlipped((f) => !f);
+        flip();
       } else if (flipped && e.key === 'ArrowRight') gotIt();
       else if (flipped && e.key === 'ArrowLeft') again();
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [flipped, gotIt, again]);
+  }, [flipped, flip, gotIt, again]);
 
   if (loading) return <Loading />;
   if (error) return <ErrorMessage error={error} />;
@@ -109,7 +146,7 @@ export default function StudyPage() {
 
           <div
             className={`flashcard ${flipped ? 'flipped' : ''}`}
-            onClick={() => setFlipped((f) => !f)}
+            onClick={flip}
             role="button"
             tabIndex={0}
             aria-label="Flip card"
@@ -136,7 +173,7 @@ export default function StudyPage() {
                 </button>
               </>
             ) : (
-              <button className="primary" onClick={() => setFlipped(true)}>
+              <button className="primary" onClick={flip}>
                 Show answer (space)
               </button>
             )}

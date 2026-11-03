@@ -31,6 +31,8 @@ class AppContainer(context: Context) {
         .create(VibeLangApi::class.java)
 
     val settings = SettingsRepository(context.applicationContext)
+
+    val reviews = ReviewReporter(api)
 }
 
 val ApiJson = Json {

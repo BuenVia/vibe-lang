@@ -296,7 +296,48 @@ Treat `404` on `GET` as "no lesson yet", not as an error. You can avoid the requ
 { "items": [ { "text": "{{Aunque}} llueva, iremos." } ] }
 ```
 
-### 5.7 Reordering
+### 5.7 Spaced repetition (Review)
+
+| Method | Path | Body | Response |
+|---|---|---|---|
+| `POST` | `/api/reviews` | `ReviewRequest` | `200` `ReviewResult` · `400` · `404` |
+| `GET` | `/api/courses/{courseId}/due?newLimit=10&zone=Europe/Madrid&limit=50` | — | `200` `DueResponse` · `400` · `404` |
+| `GET` | `/api/courses/{courseId}/progress?zone=Europe/Madrid` | — | `200` `SubjectProgress[]` · `404` |
+
+```json
+// ReviewRequest: exactly one of vocabularyId / sentenceId. mode: STUDY | PRACTICE | CLOZE | REVIEW.
+// thresholdMs is the speed limit the client applied (omit or null = speed rule off).
+// zone is the learner's IANA time zone; it decides what "today" means (UTC when missing).
+{ "vocabularyId": 12, "mode": "PRACTICE", "correct": true, "responseMs": 3200, "thresholdMs": 5000, "zone": "Europe/Madrid" }
+
+// ReviewResult. outcome: PROMOTED | SLOW | SAME_DAY | LAPSED
+{ "vocabularyId": 12, "sentenceId": null, "box": 3, "dueAt": "2026-11-07T18:35:08Z", "outcome": "PROMOTED", "reviews": 4, "lapses": 1 }
+
+// DueResponse: counts are today's totals, items is capped by `limit`. Due items first (oldest first),
+// then new items in learning-path order. box 0 + dueAt null = never reviewed.
+{ "dueCount": 1, "newCount": 2, "items": [
+    { "type": "SENTENCE", "box": 1, "dueAt": "2026-11-03T18:35:08Z", "subjectTitle": "Conectores concesivos",
+      "vocabulary": null, "sentence": { "id": 1, "subjectId": 3, "text": "{{Aunque}} llueva…", … } },
+    { "type": "VOCABULARY", "box": 0, "dueAt": null, "subjectTitle": "Pretérito imperfecto",
+      "vocabulary": { "id": 3, "term": "a menudo", "translation": "often", … }, "sentence": null } ] }
+
+// SubjectProgress: boxes[i] = items in box i (never-reviewed items count as box 0); due = due today
+{ "subjectId": 1, "total": 8, "boxes": [7, 1, 0, 0, 0, 0], "due": 0 }
+```
+
+Scheduling rules (server side, `ReviewScheduler`):
+
+| Answer | Result |
+|---|---|
+| Wrong | box 1, due now |
+| Right, but the item was already reviewed earlier today | box unchanged, due tomorrow at the earliest (`SAME_DAY`) |
+| Right but slower than `thresholdMs` | box unchanged, due tomorrow (`SLOW`) |
+| Right and fast | box + 1 (max 5), due in 1, 2, 4, 8 or 16 days; 32 days when already in box 5 |
+
+"Due today" means due before midnight in the learner's zone. At most `newLimit` new items are offered per day,
+counting items first reviewed earlier that day.
+
+### 5.8 Reordering
 
 ```json
 // ReorderRequest: the COMPLETE list of ids of that course's categories (or subjects), in the new order
@@ -315,13 +356,14 @@ is the re-ordered list with updated `position` values, so use it as the new stat
 
 | Screen | Data | Behaviour |
 |---|---|---|
-| **Learning path** (home) | `GET /api/courses/{id}/subjects` | Numbered list in the order returned. Each row shows the title, description, a category chip, and "Lesson / No lesson · N words". Tapping a row opens the subject. |
+| **Learning path** (home) | `GET /api/courses/{id}/subjects` (+ `…/due?limit=1` and `…/progress`, both optional) | A "Today's review · n due · m new" card at the top, then a numbered list in the order returned. Each row shows the title, description, a category chip, and "Lesson / No lesson · N words". Tapping a row opens the subject. |
 | **Course picker** (app bar dropdown) | `GET /api/courses` | Shows "language level", e.g. "Spanish B2". Selecting one reloads the path. Remember the choice. If the saved course no longer exists, fall back to the first course. |
 | **Categories** | `GET /api/courses/{id}/categories` + `…/subjects` | One card per category (in category order) listing its subjects, filtered by `categoryId`. |
 | **Subject** | `GET /api/subjects/{id}`, `…/lesson`, `…/vocabulary`, `…/sentences` | Header with the title, description and category. Three tabs: **Lesson** (rendered Markdown, or "no lesson yet"), **Vocabulary (n)** (term / translation / notes list) and **Sentences (n)** (gaps shown underlined). A **Study n flashcards** button when there is vocabulary (the Android app shows separate **Study** and **Practice** buttons) and a **Fill the gap** button when there are sentences. |
 | **Study** | `GET /api/subjects/{id}/vocabulary` | Flashcards. See below. |
 | **Practice** (Android only) | `GET /api/subjects/{id}/vocabulary` | Writing practice. See below. |
 | **Fill the gap** | `GET /api/subjects/{id}/sentences` | Cloze practice. See below. |
+| **Review** | `GET /api/courses/{id}/due` | Mixed spaced-repetition run over due + new items. See below. |
 | **Settings** | local only | Mode (Learner/Admin), course, Study card front side, shuffle on/off. |
 
 ### Study session (flashcards; logic used by the web app)
@@ -383,6 +425,21 @@ when queue is empty → summary with the missed sentences written out in full
 
 The parsing and checking live in `android/.../ui/practice/Cloze.kt` + `AnswerChecker.kt` and
 `frontend/src/cloze.js`; keep the two in step.
+
+### Review session (spaced repetition; web and Android)
+
+```
+queue = items from /due in the order returned (words → type the translation; sentences → fill the gaps)
+same Check / Next / "wrong goes to the end" flow as Practice and Fill the gap
+time each prompt from when it appears to Check; on the FIRST attempt at each item, POST /api/reviews
+summary → [Check for more] (reload /due) / [Back to the path]
+```
+
+Study, Practice and Fill the gap also POST the first attempt at each item, so all practice counts. Study reports
+the time from the card appearing to its first flip, with "Got it" = correct. Speed limits (client settings):
+typed answers 5 s by default, +2 s per extra gap; flashcards 3 s; the speed rule can be switched off. A correct
+but slow answer shows "But slow: 6.2 s (limit 5.0 s)". Reporting is best effort: a failed POST never interrupts
+practice.
 
 ### Admin mode (shown only when Mode = Admin)
 
@@ -525,8 +582,8 @@ Notes:
   only a UI switch. Before publishing an app that points at a public API, add authentication on the server
   (for example an admin API key or user accounts with roles). The Android client will then need to send
   credentials on write requests.
-- **No per-user progress.** Study, Practice and Fill the gap results aren't stored on the server. A "learned" or
-  spaced-repetition feature would need new endpoints; see [ROADMAP.md](ROADMAP.md) §1.
+- **Single learner.** Review progress is stored on the server but not per user, since there are no accounts.
+  Adding accounts would mean adding a `user_id` to `review_state` and `review_log`.
 - **No pagination.** List endpoints return everything. That's fine for the current content size.
 - **No offline support.** Every screen loads from the API. Consider caching courses, subjects, lessons and
   vocabulary locally for offline study.

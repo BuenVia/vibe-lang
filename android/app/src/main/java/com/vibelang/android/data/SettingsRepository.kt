@@ -3,6 +3,7 @@ package com.vibelang.android.data
 import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -20,9 +21,35 @@ data class Settings(
     val courseId: Long? = null,
     val cardFront: CardFront = CardFront.TERM,
     val shuffleCards: Boolean = true,
+    /** Spaced repetition: only promote answers given within the time limit. */
+    val speedRule: Boolean = true,
+    /** Time limit in seconds for a typed answer with one gap (each extra gap adds [EXTRA_GAP_MS]). */
+    val answerSeconds: Int = DEFAULT_ANSWER_SECONDS,
+    /** How many never-reviewed items Review introduces per day. */
+    val newPerDay: Int = DEFAULT_NEW_PER_DAY,
 ) {
     val isAdmin: Boolean get() = mode == Mode.ADMIN
+
+    /** The speed limit to report with an answer, or null when the speed rule is off. */
+    fun thresholdMs(kind: AnswerKind, gaps: Int = 1): Int? = when {
+        !speedRule -> null
+        kind == AnswerKind.FLASHCARD -> FLASHCARD_MS
+        else -> answerSeconds * 1000 + EXTRA_GAP_MS * (gaps - 1).coerceAtLeast(0)
+    }
+
+    companion object {
+        const val DEFAULT_ANSWER_SECONDS = 5
+        const val DEFAULT_NEW_PER_DAY = 10
+        /** Flashcards: time from the card appearing to flipping it. */
+        const val FLASHCARD_MS = 3000
+        const val EXTRA_GAP_MS = 2000
+        val ANSWER_SECONDS_OPTIONS = listOf(3, 4, 5, 7, 10)
+        val NEW_PER_DAY_OPTIONS = listOf(0, 5, 10, 20, 30)
+    }
 }
+
+/** How an answer is given, which decides its speed limit. */
+enum class AnswerKind { FLASHCARD, TYPED }
 
 private val Context.dataStore by preferencesDataStore(name = "settings")
 
@@ -33,6 +60,9 @@ class SettingsRepository(private val context: Context) {
         val courseId = longPreferencesKey("courseId")
         val cardFront = stringPreferencesKey("cardFront")
         val shuffleCards = booleanPreferencesKey("shuffleCards")
+        val speedRule = booleanPreferencesKey("speedRule")
+        val answerSeconds = intPreferencesKey("answerSeconds")
+        val newPerDay = intPreferencesKey("newPerDay")
     }
 
     val settings: Flow<Settings> = context.dataStore.data.map { p ->
@@ -42,6 +72,9 @@ class SettingsRepository(private val context: Context) {
             cardFront = p[Keys.cardFront]?.let { runCatching { CardFront.valueOf(it) }.getOrNull() }
                 ?: CardFront.TERM,
             shuffleCards = p[Keys.shuffleCards] ?: true,
+            speedRule = p[Keys.speedRule] ?: true,
+            answerSeconds = p[Keys.answerSeconds] ?: Settings.DEFAULT_ANSWER_SECONDS,
+            newPerDay = p[Keys.newPerDay] ?: Settings.DEFAULT_NEW_PER_DAY,
         )
     }
 
@@ -54,4 +87,10 @@ class SettingsRepository(private val context: Context) {
     suspend fun setCardFront(front: CardFront) = context.dataStore.edit { it[Keys.cardFront] = front.name }
 
     suspend fun setShuffleCards(shuffle: Boolean) = context.dataStore.edit { it[Keys.shuffleCards] = shuffle }
+
+    suspend fun setSpeedRule(on: Boolean) = context.dataStore.edit { it[Keys.speedRule] = on }
+
+    suspend fun setAnswerSeconds(seconds: Int) = context.dataStore.edit { it[Keys.answerSeconds] = seconds }
+
+    suspend fun setNewPerDay(count: Int) = context.dataStore.edit { it[Keys.newPerDay] = count }
 }

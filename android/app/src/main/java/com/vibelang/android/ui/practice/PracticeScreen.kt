@@ -52,6 +52,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewModelScope
+import com.vibelang.android.data.AnswerKind
+import com.vibelang.android.data.PromptTimer
+import com.vibelang.android.data.ReviewMode
+import com.vibelang.android.data.ReviewReporter
 import com.vibelang.android.data.Subject
 import com.vibelang.android.data.VibeLangApi
 import com.vibelang.android.data.Vocabulary
@@ -67,10 +72,16 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 
 data class PracticeData(val subject: Subject, val vocabulary: List<Vocabulary>)
 
-class PracticeViewModel(private val api: VibeLangApi) : LoadViewModel<Long, PracticeData>() {
+class PracticeViewModel(
+    private val api: VibeLangApi,
+    private val reviews: ReviewReporter,
+) : LoadViewModel<Long, PracticeData>() {
+    private val timer = PromptTimer()
+
     override suspend fun fetch(key: Long): PracticeData = coroutineScope {
         val subject = async { api.subject(key) }
         val vocabulary = async { api.vocabulary(key) }
@@ -82,6 +93,7 @@ class PracticeViewModel(private val api: VibeLangApi) : LoadViewModel<Long, Prac
 
     fun start(words: List<Vocabulary>, shuffle: Boolean) {
         _session.value = PracticeSession.start(words, shuffle, round = (_session.value?.round ?: 0) + 1)
+        timer.reset()
     }
 
     /** Starts the first session once the vocabulary has loaded; later reloads keep the current session. */
@@ -89,14 +101,33 @@ class PracticeViewModel(private val api: VibeLangApi) : LoadViewModel<Long, Prac
         if (_session.value == null) start(words, shuffle)
     }
 
-    fun submit(answer: String) = _session.value?.let { _session.value = it.submit(answer) }
-    fun next() = _session.value?.let { _session.value = it.next() }
+    /** Checks the answer and reports the first attempt at each word to spaced repetition. */
+    fun submit(answer: String, thresholdMs: Int?) {
+        val session = _session.value ?: return
+        val word = session.current ?: return
+        val ms = timer.elapsedMs()
+        val checked = session.submit(answer, ms)
+        val feedback = checked.feedback
+        if (checked === session || feedback == null) return
+        _session.value = checked
+        if (timer.firstAttempt("v${word.id}")) {
+            viewModelScope.launch {
+                reviews.report(ReviewMode.PRACTICE, vocabularyId = word.id, correct = feedback.verdict.isCorrect,
+                    responseMs = ms, thresholdMs = thresholdMs)
+            }
+        }
+    }
+
+    fun next() {
+        _session.value?.let { _session.value = it.next() }
+        timer.restart()
+    }
 }
 
 /** Practice by writing: the learner sees each term and types its translation. */
 @Composable
 fun PracticeScreen(subjectId: Long, appVm: AppViewModel, onBack: () -> Unit) {
-    val vm = appViewModel { PracticeViewModel(it.api) }
+    val vm = appViewModel { PracticeViewModel(it.api, it.reviews) }
     LaunchedEffect(subjectId) { vm.load(subjectId) }
 
     val state by vm.state.collectAsStateWithLifecycle()
@@ -151,7 +182,10 @@ fun PracticeScreen(subjectId: Long, appVm: AppViewModel, onBack: () -> Unit) {
                         onPracticeMissed = { vm.start(d.vocabulary.filter { it.id in s.missed }, shuffle) },
                         onRestart = { vm.start(d.vocabulary, shuffle) },
                     )
-                    else -> WritingRun(session = s, onSubmit = vm::submit, onNext = vm::next)
+                    else -> {
+                        val threshold = settings?.thresholdMs(AnswerKind.TYPED)
+                        WritingRun(session = s, thresholdMs = threshold, onSubmit = { vm.submit(it, threshold) }, onNext = vm::next)
+                    }
                 }
             }
         }
@@ -159,7 +193,12 @@ fun PracticeScreen(subjectId: Long, appVm: AppViewModel, onBack: () -> Unit) {
 }
 
 @Composable
-private fun WritingRun(session: PracticeSession, onSubmit: (String) -> Unit, onNext: () -> Unit) {
+private fun WritingRun(
+    session: PracticeSession,
+    thresholdMs: Int?,
+    onSubmit: (String) -> Unit,
+    onNext: () -> Unit,
+) {
     val word = session.current ?: return
     val feedback = session.feedback
     // A fresh, empty field for every word, including when the same word comes straight back.
@@ -221,7 +260,7 @@ private fun WritingRun(session: PracticeSession, onSubmit: (String) -> Unit, onN
 
         feedback?.let {
             Spacer(Modifier.height(16.dp))
-            FeedbackCard(word, it, width)
+            FeedbackCard(word, it, thresholdMs, width)
         }
 
         Spacer(Modifier.height(20.dp))
@@ -234,7 +273,7 @@ private fun WritingRun(session: PracticeSession, onSubmit: (String) -> Unit, onN
 }
 
 @Composable
-private fun FeedbackCard(word: Vocabulary, feedback: Feedback, modifier: Modifier) {
+internal fun FeedbackCard(word: Vocabulary, feedback: Feedback, thresholdMs: Int?, modifier: Modifier) {
     val extra = LocalExtraColors.current
     val correct = feedback.verdict.isCorrect
     val container = if (correct) extra.successContainer else MaterialTheme.colorScheme.errorContainer
@@ -251,6 +290,7 @@ private fun FeedbackCard(word: Vocabulary, feedback: Feedback, modifier: Modifie
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
+            if (correct) SlowNote(feedback.responseMs, thresholdMs)
             if (feedback.verdict != Verdict.CORRECT) {
                 Text("Answer: ${word.translation}", style = MaterialTheme.typography.bodyLarge)
             }

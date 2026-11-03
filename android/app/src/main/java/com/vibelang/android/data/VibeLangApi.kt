@@ -7,6 +7,7 @@ import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Path
+import retrofit2.http.Query
 
 /** Retrofit description of the Vibe Lang REST API. Paths are relative to BuildConfig.API_BASE_URL. */
 interface VibeLangApi {
@@ -99,4 +100,19 @@ interface VibeLangApi {
 
     @DELETE("api/sentences/{id}")
     suspend fun deleteSentence(@Path("id") id: Long): Response<Unit>
+
+    // Spaced repetition
+    @POST("api/reviews")
+    suspend fun review(@Body body: ReviewRequest): ReviewResult
+
+    @GET("api/courses/{courseId}/due")
+    suspend fun due(
+        @Path("courseId") courseId: Long,
+        @Query("newLimit") newLimit: Int,
+        @Query("zone") zone: String,
+        @Query("limit") limit: Int = 50,
+    ): DueResponse
+
+    @GET("api/courses/{courseId}/progress")
+    suspend fun progress(@Path("courseId") courseId: Long, @Query("zone") zone: String): List<SubjectProgress>
 }

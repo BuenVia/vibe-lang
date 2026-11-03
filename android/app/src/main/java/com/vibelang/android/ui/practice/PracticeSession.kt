@@ -4,7 +4,7 @@ import com.vibelang.android.data.Vocabulary
 import kotlin.random.Random
 
 /** The result of checking the current word, shown until the learner moves on. */
-data class Feedback(val answer: String, val verdict: Verdict)
+data class Feedback(val answer: String, val verdict: Verdict, val responseMs: Long? = null)
 
 /**
  * Immutable state of a Practice (writing) run. The learner sees a term and types its translation.
@@ -33,12 +33,13 @@ data class PracticeSession(
     /** Words answered correctly the first time they came up. */
     val firstTryCorrect: Int get() = total - missed.size
 
-    fun submit(answer: String): PracticeSession {
+    /** [responseMs] is how long the learner took, for the speed rule; it is only carried into [feedback]. */
+    fun submit(answer: String, responseMs: Long? = null): PracticeSession {
         val word = current ?: return this
         if (isChecked || answer.isBlank()) return this
         val verdict = AnswerChecker.check(answer, word.translation)
         return copy(
-            feedback = Feedback(answer.trim(), verdict),
+            feedback = Feedback(answer.trim(), verdict, responseMs),
             missed = if (verdict.isCorrect) missed else missed + word.id,
         )
     }

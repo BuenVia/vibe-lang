@@ -4,7 +4,7 @@ import com.vibelang.android.data.Sentence
 import kotlin.random.Random
 
 /** The result of checking every gap of the current sentence, shown until the learner moves on. */
-data class ClozeFeedback(val answers: List<String>, val verdicts: List<Verdict>) {
+data class ClozeFeedback(val answers: List<String>, val verdicts: List<Verdict>, val responseMs: Long? = null) {
     val isCorrect: Boolean get() = verdicts.all { it.isCorrect }
 }
 
@@ -32,13 +32,14 @@ data class ClozeSession(
     val firstTryCorrect: Int get() = total - missed.size
 
     /** Ignored until every gap has an answer. */
-    fun submit(answers: List<String>): ClozeSession {
+    fun submit(answers: List<String>, responseMs: Long? = null): ClozeSession {
         val sentence = current ?: return this
         val gaps = currentGaps
         if (isChecked || answers.size != gaps.size || answers.any { it.isBlank() }) return this
         val result = ClozeFeedback(
             answers = answers.map { it.trim() },
             verdicts = gaps.zip(answers) { expected, given -> AnswerChecker.check(given, expected) },
+            responseMs = responseMs,
         )
         return copy(feedback = result, missed = if (result.isCorrect) missed else missed + sentence.id)
     }

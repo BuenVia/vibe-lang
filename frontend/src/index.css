@@ -186,3 +186,12 @@ label.radio input, label.checkbox input { width: auto; margin-top: 0.3rem; }
 .cloze-feedback.bad { border-color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, var(--surface)); }
 .cloze-explanation { font-style: italic; color: var(--muted); }
 .cloze-review { text-align: left; max-width: 480px; margin: 0 auto 1rem; }
+
+/* Review */
+.review-card { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.review-card h2 { margin-bottom: 0.15rem; }
+.review-card.has-work { border-color: var(--primary); background: var(--primary-soft); }
+.review-meta { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; margin-bottom: 1rem; }
+.subject-progress { display: flex; flex-direction: column; gap: 0.2rem; margin-top: 0.4rem; }
+.subject-progress .progress { display: block; height: 4px; }
+.subject-progress .progress-bar { display: block; }

@@ -6,6 +6,7 @@ import { useLoad } from '../useLoad.js';
 import { ErrorMessage, Loading } from '../components/Status.jsx';
 import { Verdict, checkAnswer, clozeGaps, displayAnswer, hasGap, solvedSentence } from '../cloze.js';
 import { ClozeSentence } from '../components/ClozeText.jsx';
+import { SlowNote, reportReview, thresholdMs, usePromptTimer } from '../reviews.jsx';
 
 function shuffle(list) {
   const copy = [...list];
@@ -34,6 +35,8 @@ export default function ClozePage() {
   const [answers, setAnswers] = useState([]);
   const [verdicts, setVerdicts] = useState(null); // null until the current sentence is checked
   const [step, setStep] = useState(0); // increases on every new prompt, so the fields reset
+  const [responseMs, setResponseMs] = useState(null);
+  const timer = usePromptTimer();
   const firstInput = useRef(null);
 
   const start = useCallback(
@@ -44,7 +47,9 @@ export default function ClozePage() {
       setMissed(new Set());
       setVerdicts(null);
       setStep((n) => n + 1);
+      timer.reset();
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [settings.shuffleCards],
   );
 
@@ -63,19 +68,27 @@ export default function ClozePage() {
   }, [step]);
 
   const complete = answers.length === gaps.length && answers.every((a) => a.trim());
+  const limit = thresholdMs(settings, 'typed', gaps.length);
   const correct = verdicts?.every((v) => v !== Verdict.INCORRECT);
 
   const check = () => {
     if (!complete || verdicts) return;
+    const ms = timer.elapsedMs();
     const result = gaps.map((expected, i) => checkAnswer(answers[i], expected));
+    const ok = result.every((v) => v !== Verdict.INCORRECT);
     setVerdicts(result);
-    if (result.some((v) => v === Verdict.INCORRECT)) setMissed((m) => new Set(m).add(current.id));
+    setResponseMs(ms);
+    if (!ok) setMissed((m) => new Set(m).add(current.id));
+    if (timer.firstAttempt(`s${current.id}`)) {
+      reportReview({ mode: 'CLOZE', sentenceId: current.id, correct: ok, responseMs: ms, thresholdMs: limit });
+    }
   };
 
   const next = () => {
     setQueue((q) => (correct ? q.slice(1) : [...q.slice(1), q[0]]));
     setVerdicts(null);
     setStep((n) => n + 1);
+    timer.restart();
   };
 
   const onSubmit = (e) => {
@@ -147,6 +160,7 @@ export default function ClozePage() {
                     ? 'Correct, but watch the accents'
                     : 'Correct!'}
               </strong>
+              {correct && <SlowNote ms={responseMs} threshold={limit} />}
               {gaps.map(
                 (expected, i) =>
                   verdicts[i] !== Verdict.CORRECT && (

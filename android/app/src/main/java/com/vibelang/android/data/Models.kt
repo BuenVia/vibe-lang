@@ -69,6 +69,52 @@ data class Sentence(
     val position: Int,
 )
 
+// Spaced repetition. Timestamps are ISO-8601 strings.
+
+@Serializable
+enum class ReviewMode { STUDY, PRACTICE, CLOZE, REVIEW }
+
+@Serializable
+enum class ReviewOutcome { PROMOTED, SLOW, SAME_DAY, LAPSED }
+
+@Serializable
+data class ReviewResult(
+    val vocabularyId: Long? = null,
+    val sentenceId: Long? = null,
+    val box: Int,
+    val dueAt: String,
+    val outcome: ReviewOutcome,
+    val reviews: Int,
+    val lapses: Int,
+)
+
+@Serializable
+enum class DueType { VOCABULARY, SENTENCE }
+
+@Serializable
+data class DueItem(
+    val type: DueType,
+    val box: Int,
+    val dueAt: String? = null,
+    val subjectTitle: String,
+    val vocabulary: Vocabulary? = null,
+    val sentence: Sentence? = null,
+)
+
+/** [dueCount] and [newCount] are today's totals; [items] is capped by the request's limit. */
+@Serializable
+data class DueResponse(val dueCount: Int, val newCount: Int, val items: List<DueItem>) {
+    val total: Int get() = dueCount + newCount
+}
+
+/** [boxes] has 6 counts (boxes 0–5); never-reviewed items are in box 0. */
+@Serializable
+data class SubjectProgress(val subjectId: Long, val total: Int, val boxes: List<Int>, val due: Int) {
+    /** Items in box 4 or 5. */
+    val mastered: Int get() = boxes.getOrElse(4) { 0 } + boxes.getOrElse(5) { 0 }
+    val reviewed: Int get() = total - boxes.getOrElse(0) { 0 }
+}
+
 // Request bodies.
 
 @Serializable
@@ -99,6 +145,17 @@ data class SentenceRequest(
 
 @Serializable
 data class BulkSentenceRequest(val items: List<SentenceRequest>)
+
+@Serializable
+data class ReviewRequest(
+    val vocabularyId: Long? = null,
+    val sentenceId: Long? = null,
+    val mode: ReviewMode,
+    val correct: Boolean,
+    val responseMs: Int,
+    val thresholdMs: Int? = null,
+    val zone: String? = null,
+)
 
 @Serializable
 data class ReorderRequest(val ids: List<Long>)

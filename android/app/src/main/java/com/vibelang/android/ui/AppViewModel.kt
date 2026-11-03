@@ -77,6 +77,9 @@ class AppViewModel(
     fun selectCourse(id: Long) = viewModelScope.launch { repository.setCourseId(id) }
     fun setCardFront(front: CardFront) = viewModelScope.launch { repository.setCardFront(front) }
     fun setShuffleCards(shuffle: Boolean) = viewModelScope.launch { repository.setShuffleCards(shuffle) }
+    fun setSpeedRule(on: Boolean) = viewModelScope.launch { repository.setSpeedRule(on) }
+    fun setAnswerSeconds(seconds: Int) = viewModelScope.launch { repository.setAnswerSeconds(seconds) }
+    fun setNewPerDay(count: Int) = viewModelScope.launch { repository.setNewPerDay(count) }
 
     // Course admin
 

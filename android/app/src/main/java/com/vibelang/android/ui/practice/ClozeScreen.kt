@@ -58,6 +58,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewModelScope
+import com.vibelang.android.data.AnswerKind
+import com.vibelang.android.data.PromptTimer
+import com.vibelang.android.data.ReviewMode
+import com.vibelang.android.data.ReviewReporter
 import com.vibelang.android.data.Sentence
 import com.vibelang.android.data.Subject
 import com.vibelang.android.data.VibeLangApi
@@ -73,10 +78,16 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 
 data class ClozeData(val subject: Subject, val sentences: List<Sentence>)
 
-class ClozeViewModel(private val api: VibeLangApi) : LoadViewModel<Long, ClozeData>() {
+class ClozeViewModel(
+    private val api: VibeLangApi,
+    private val reviews: ReviewReporter,
+) : LoadViewModel<Long, ClozeData>() {
+    private val timer = PromptTimer()
+
     override suspend fun fetch(key: Long): ClozeData = coroutineScope {
         val subject = async { api.subject(key) }
         val sentences = async { api.sentences(key) }
@@ -88,6 +99,7 @@ class ClozeViewModel(private val api: VibeLangApi) : LoadViewModel<Long, ClozeDa
 
     fun start(sentences: List<Sentence>, shuffle: Boolean) {
         _session.value = ClozeSession.start(sentences, shuffle, round = (_session.value?.round ?: 0) + 1)
+        timer.reset()
     }
 
     /** Starts the first session once the sentences have loaded; later reloads keep the current session. */
@@ -95,14 +107,33 @@ class ClozeViewModel(private val api: VibeLangApi) : LoadViewModel<Long, ClozeDa
         if (_session.value == null) start(sentences, shuffle)
     }
 
-    fun submit(answers: List<String>) = _session.value?.let { _session.value = it.submit(answers) }
-    fun next() = _session.value?.let { _session.value = it.next() }
+    /** Checks every gap and reports the first attempt at each sentence to spaced repetition. */
+    fun submit(answers: List<String>, thresholdMs: Int?) {
+        val session = _session.value ?: return
+        val sentence = session.current ?: return
+        val ms = timer.elapsedMs()
+        val checked = session.submit(answers, ms)
+        val feedback = checked.feedback
+        if (checked === session || feedback == null) return
+        _session.value = checked
+        if (timer.firstAttempt("s${sentence.id}")) {
+            viewModelScope.launch {
+                reviews.report(ReviewMode.CLOZE, sentenceId = sentence.id, correct = feedback.isCorrect,
+                    responseMs = ms, thresholdMs = thresholdMs)
+            }
+        }
+    }
+
+    fun next() {
+        _session.value?.let { _session.value = it.next() }
+        timer.restart()
+    }
 }
 
 /** Fill the gap: the learner sees a sentence in context and types the missing word(s). */
 @Composable
 fun ClozeScreen(subjectId: Long, appVm: AppViewModel, onBack: () -> Unit) {
-    val vm = appViewModel { ClozeViewModel(it.api) }
+    val vm = appViewModel { ClozeViewModel(it.api, it.reviews) }
     LaunchedEffect(subjectId) { vm.load(subjectId) }
 
     val state by vm.state.collectAsStateWithLifecycle()
@@ -157,7 +188,10 @@ fun ClozeScreen(subjectId: Long, appVm: AppViewModel, onBack: () -> Unit) {
                         onPracticeMissed = { vm.start(d.sentences.filter { it.id in s.missed }, shuffle) },
                         onRestart = { vm.start(d.sentences, shuffle) },
                     )
-                    else -> ClozeRun(session = s, onSubmit = vm::submit, onNext = vm::next)
+                    else -> {
+                        val threshold = settings?.thresholdMs(AnswerKind.TYPED, s.currentGaps.size)
+                        ClozeRun(session = s, thresholdMs = threshold, onSubmit = { vm.submit(it, threshold) }, onNext = vm::next)
+                    }
                 }
             }
         }
@@ -165,7 +199,12 @@ fun ClozeScreen(subjectId: Long, appVm: AppViewModel, onBack: () -> Unit) {
 }
 
 @Composable
-private fun ClozeRun(session: ClozeSession, onSubmit: (List<String>) -> Unit, onNext: () -> Unit) {
+private fun ClozeRun(
+    session: ClozeSession,
+    thresholdMs: Int?,
+    onSubmit: (List<String>) -> Unit,
+    onNext: () -> Unit,
+) {
     val sentence = session.current ?: return
     val gaps = session.currentGaps
     val feedback = session.feedback
@@ -259,7 +298,7 @@ private fun ClozeRun(session: ClozeSession, onSubmit: (List<String>) -> Unit, on
 
         feedback?.let {
             Spacer(Modifier.height(16.dp))
-            ClozeFeedbackCard(sentence, gaps, it, width)
+            ClozeFeedbackCard(sentence, gaps, it, thresholdMs, width)
         }
 
         Spacer(Modifier.height(20.dp))
@@ -273,7 +312,7 @@ private fun ClozeRun(session: ClozeSession, onSubmit: (List<String>) -> Unit, on
 
 /** The sentence with blanks before checking, and with the right answers coloured in afterwards. */
 @Composable
-private fun clozeText(text: String, feedback: ClozeFeedback?): AnnotatedString {
+internal fun clozeText(text: String, feedback: ClozeFeedback?): AnnotatedString {
     val extra = LocalExtraColors.current
     val error = MaterialTheme.colorScheme.error
     val blank = MaterialTheme.colorScheme.primary
@@ -302,7 +341,13 @@ private fun clozeText(text: String, feedback: ClozeFeedback?): AnnotatedString {
 }
 
 @Composable
-private fun ClozeFeedbackCard(sentence: Sentence, gaps: List<String>, feedback: ClozeFeedback, modifier: Modifier) {
+internal fun ClozeFeedbackCard(
+    sentence: Sentence,
+    gaps: List<String>,
+    feedback: ClozeFeedback,
+    thresholdMs: Int?,
+    modifier: Modifier,
+) {
     val extra = LocalExtraColors.current
     val correct = feedback.isCorrect
     val container = if (correct) extra.successContainer else MaterialTheme.colorScheme.errorContainer
@@ -320,6 +365,7 @@ private fun ClozeFeedbackCard(sentence: Sentence, gaps: List<String>, feedback: 
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
+            if (correct) SlowNote(feedback.responseMs, thresholdMs)
             gaps.forEachIndexed { i, expected ->
                 val verdict = feedback.verdicts[i]
                 if (verdict != Verdict.CORRECT) {

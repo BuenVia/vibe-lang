@@ -70,6 +70,12 @@ export const api = {
     update: (id, body) => put(`/sentences/${id}`, body),
     remove: (id) => del(`/sentences/${id}`),
   },
+  reviews: {
+    report: (body) => post('/reviews', body),
+    due: (courseId, { newLimit, zone, limit = 50 }) =>
+      get(`/courses/${courseId}/due?${new URLSearchParams({ newLimit, zone, limit })}`),
+    progress: (courseId, zone) => get(`/courses/${courseId}/progress?${new URLSearchParams({ zone })}`),
+  },
 };
 
 /** Returns a copy of `list` with the item at `index` moved by `delta` (-1 up, +1 down). */

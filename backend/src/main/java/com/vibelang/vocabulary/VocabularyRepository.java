@@ -13,6 +13,14 @@ public interface VocabularyRepository extends JpaRepository<Vocabulary, Long> {
 
     long countBySubjectId(Long subjectId);
 
+    /** All vocabulary of a course, with its subject loaded. */
+    @Query("""
+            select v from Vocabulary v
+            join fetch v.subject s
+            where s.category.course.id = :courseId
+            """)
+    List<Vocabulary> findByCourse(@Param("courseId") Long courseId);
+
     @Query("select coalesce(max(v.position), 0) from Vocabulary v where v.subject.id = :subjectId")
     int maxPosition(@Param("subjectId") Long subjectId);
 

@@ -5,6 +5,7 @@ import CategoriesPage from './pages/CategoriesPage.jsx';
 import SubjectPage from './pages/SubjectPage.jsx';
 import StudyPage from './pages/StudyPage.jsx';
 import ClozePage from './pages/ClozePage.jsx';
+import ReviewPage from './pages/ReviewPage.jsx';
 import SettingsPage from './pages/SettingsPage.jsx';
 import AdminPage from './pages/admin/AdminPage.jsx';
 
@@ -49,6 +50,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<LearningPathPage />} />
           <Route path="/categories" element={<CategoriesPage />} />
+          <Route path="/review" element={<ReviewPage />} />
           <Route path="/subjects/:id" element={<SubjectPage />} />
           <Route path="/subjects/:id/study" element={<StudyPage />} />
           <Route path="/subjects/:id/cloze" element={<ClozePage />} />

@@ -3,14 +3,26 @@ import { api } from '../api.js';
 import { courseLabel, useSettings } from '../context/SettingsContext.jsx';
 import { useLoad } from '../useLoad.js';
 import { ErrorMessage, Loading, NoCourse } from '../components/Status.jsx';
+import { DEFAULT_NEW_PER_DAY, currentZone } from '../reviews.jsx';
+
+// Review counts and progress are optional: the path still shows if they can't be loaded.
+const optional = (promise) => promise.catch(() => null);
 
 export default function LearningPathPage() {
-  const { course, isAdmin, coursesError } = useSettings();
+  const { course, isAdmin, coursesError, settings } = useSettings();
   const courseId = course?.id;
-  const { data: subjects, error, loading } = useLoad(
-    () => (courseId ? api.subjects.list(courseId) : []),
-    [courseId],
-  );
+  const newLimit = settings.newPerDay ?? DEFAULT_NEW_PER_DAY;
+  const { data, error, loading } = useLoad(async () => {
+    if (!courseId) return { subjects: [], due: null, progress: {} };
+    const zone = currentZone();
+    const [subjects, due, progress] = await Promise.all([
+      api.subjects.list(courseId),
+      optional(api.reviews.due(courseId, { newLimit, zone, limit: 1 })),
+      optional(api.reviews.progress(courseId, zone)),
+    ]);
+    return { subjects, due, progress: Object.fromEntries((progress ?? []).map((p) => [p.subjectId, p])) };
+  }, [courseId, newLimit]);
+  const subjects = data?.subjects ?? [];
 
   if (coursesError) return <ErrorMessage error={coursesError} />;
   if (!course) return <NoCourse />;
@@ -30,6 +42,7 @@ export default function LearningPathPage() {
       </div>
 
       <ErrorMessage error={error} />
+      {data?.due && <ReviewCard due={data.due} />}
       {loading ? (
         <Loading />
       ) : subjects.length === 0 ? (
@@ -58,5 +71,40 @@ export default function LearningPathPage() {
         </ol>
       )}
     </section>
+  );
+}
+
+function ReviewCard({ due }) {
+  const total = due.dueCount + due.newCount;
+  return (
+    <div className={`card review-card ${total > 0 ? 'has-work' : ''}`}>
+      <div>
+        <h2>Today's review</h2>
+        <span className="muted">
+          {total > 0 ? `${due.dueCount} due · ${due.newCount} new` : 'All caught up. Come back tomorrow.'}
+        </span>
+      </div>
+      {total > 0 && (
+        <Link className="button primary" to="/review">
+          Start review
+        </Link>
+      )}
+    </div>
+  );
+}
+
+/** "3 of 12 learned" with a bar; hidden until something in the subject has been reviewed. */
+function SubjectProgress({ progress }) {
+  if (!progress || progress.total === 0 || progress.boxes[0] === progress.total) return null;
+  const mastered = progress.boxes[4] + progress.boxes[5];
+  return (
+    <span className="subject-progress">
+      <span className="progress">
+        <span className="progress-bar" style={{ width: `${(mastered / progress.total) * 100}%` }} />
+      </span>
+      <span className="muted small">
+        {mastered} of {progress.total} learned{progress.due > 0 ? ` · ${progress.due} due` : ''}
+      </span>
+    </span>
   );
 }

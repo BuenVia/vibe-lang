@@ -7,6 +7,9 @@ const DEFAULTS = {
   courseId: null,
   cardFront: 'term', // 'term' | 'translation'
   shuffleCards: true,
+  speedRule: true, // spaced repetition: only promote answers given within the time limit
+  answerSeconds: 5, // time limit for a typed answer with one gap
+  newPerDay: 10, // new items Review introduces per day
 };
 
 function loadSettings() {
