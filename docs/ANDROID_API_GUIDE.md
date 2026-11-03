@@ -38,7 +38,8 @@ Course              e.g. "Spanish B2"
  └── Category       e.g. "Verbs: Past"              (many per course; ordered)
       └── Subject   e.g. "Pretérito imperfecto"     (many per category; learning order is per COURSE)
            ├── Lesson       (0 or 1 per subject; Markdown text)
-           └── Vocabulary   (0..n per subject; term + translation + optional notes)
+           ├── Vocabulary   (0..n per subject; term + translation + optional notes)
+           └── Sentence     (0..n per subject; text with {{gaps}} + optional translation, hint, explanation)
 ```
 
 Rules the client should know:
@@ -107,8 +108,11 @@ Every error response has this shape. `detail` is human-readable and can be shown
 | Subject | `categoryId` | required, must exist |
 | Lesson | `content` | required (may be an empty string) |
 | Vocabulary | `term`, `translation` | required, not blank, max 500 each |
+| Sentence | `text` | required, max 1000, must contain at least one non-empty `{{gap}}` |
+| Sentence | `translation` / `hint` | optional, max 1000 / 200 |
 
-The server trims whitespace from names and terms. Blank `notes` are stored as `null`.
+The server trims whitespace from names and terms. Blank `notes`, and blank sentence `translation`, `hint` and
+`explanation`, are stored as `null`.
 
 ### Cold starts
 
@@ -141,10 +145,11 @@ error.
   "description": "Habits, descriptions and background in the past.",
   "position": 1,
   "hasLesson": true,
-  "vocabularyCount": 8
+  "vocabularyCount": 8,
+  "sentenceCount": 0
 }
 ```
-`categoryName`, `courseId`, `hasLesson` and `vocabularyCount` are read-only summary fields, so lists can be shown
+`categoryName`, `courseId`, `hasLesson`, `vocabularyCount` and `sentenceCount` are read-only summary fields, so lists can be shown
 without extra requests.
 
 ### Lesson
@@ -159,6 +164,22 @@ supports them.
 { "id": 1, "subjectId": 1, "term": "a menudo", "translation": "often", "notes": null, "position": 3 }
 ```
 `notes` is an optional example sentence or usage hint. The web app shows it on the back of the flashcard.
+
+### Sentence
+```json
+{
+  "id": 1,
+  "subjectId": 2,
+  "text": "Si {{tuviera/tuviese}} más tiempo, aprendería a tocar la guitarra.",
+  "translation": "If I had more time, I would learn to play the guitar.",
+  "hint": "tener",
+  "explanation": "Si + imperfecto de subjuntivo + condicional: a hypothetical present condition.",
+  "position": 1
+}
+```
+`text` marks each gap with double braces. A sentence can have several gaps, and `/` inside a gap separates
+accepted alternatives. `{{}}` (empty) is not a gap. The client blanks out the gaps, so the API never needs to
+know about the answers separately.
 
 ---
 
@@ -256,7 +277,26 @@ Treat `404` on `GET` as "no lesson yet", not as an error. You can avoid the requ
 ] }
 ```
 
-### 5.6 Reordering
+### 5.6 Sentences (Fill the gap)
+
+| Method | Path | Body | Response |
+|---|---|---|---|
+| `GET` | `/api/subjects/{subjectId}/sentences` | — | `200` `Sentence[]`, ordered · `404` |
+| `POST` | `/api/subjects/{subjectId}/sentences` | `SentenceRequest` | `201` `Sentence` · `400` · `404` |
+| `POST` | `/api/subjects/{subjectId}/sentences/bulk` | `BulkSentenceRequest` | `201` `Sentence[]` · `400` · `404` |
+| `PUT` | `/api/sentences/{id}` | `SentenceRequest` | `200` `Sentence` · `400` · `404` |
+| `DELETE` | `/api/sentences/{id}` | — | `204` · `404` |
+
+```json
+// SentenceRequest
+{ "text": "No creo que {{tenga}} razón.", "translation": "I don't think he's right.", "hint": "tener",
+  "explanation": "No creer que → subjunctive (doubt)." }
+
+// BulkSentenceRequest (all-or-nothing, like vocabulary)
+{ "items": [ { "text": "{{Aunque}} llueva, iremos." } ] }
+```
+
+### 5.7 Reordering
 
 ```json
 // ReorderRequest: the COMPLETE list of ids of that course's categories (or subjects), in the new order
@@ -278,9 +318,10 @@ is the re-ordered list with updated `position` values, so use it as the new stat
 | **Learning path** (home) | `GET /api/courses/{id}/subjects` | Numbered list in the order returned. Each row shows the title, description, a category chip, and "Lesson / No lesson · N words". Tapping a row opens the subject. |
 | **Course picker** (app bar dropdown) | `GET /api/courses` | Shows "language level", e.g. "Spanish B2". Selecting one reloads the path. Remember the choice. If the saved course no longer exists, fall back to the first course. |
 | **Categories** | `GET /api/courses/{id}/categories` + `…/subjects` | One card per category (in category order) listing its subjects, filtered by `categoryId`. |
-| **Subject** | `GET /api/subjects/{id}`, `…/lesson`, `…/vocabulary` | Header with the title, description and category. Two tabs: **Lesson** (rendered Markdown, or "no lesson yet") and **Vocabulary (n)** (term / translation / notes list). A **Study n flashcards** button, disabled when n = 0. The Android app shows separate **Study** and **Practice** buttons. |
+| **Subject** | `GET /api/subjects/{id}`, `…/lesson`, `…/vocabulary`, `…/sentences` | Header with the title, description and category. Three tabs: **Lesson** (rendered Markdown, or "no lesson yet"), **Vocabulary (n)** (term / translation / notes list) and **Sentences (n)** (gaps shown underlined). A **Study n flashcards** button when there is vocabulary (the Android app shows separate **Study** and **Practice** buttons) and a **Fill the gap** button when there are sentences. |
 | **Study** | `GET /api/subjects/{id}/vocabulary` | Flashcards. See below. |
 | **Practice** (Android only) | `GET /api/subjects/{id}/vocabulary` | Writing practice. See below. |
+| **Fill the gap** | `GET /api/subjects/{id}/sentences` | Cloze practice. See below. |
 | **Settings** | local only | Mode (Learner/Admin), course, Study card front side, shuffle on/off. |
 
 ### Study session (flashcards; logic used by the web app)
@@ -323,6 +364,25 @@ when queue is empty → summary: "{total - missed.size} of {total} right first t
 Answer checking ignores case, punctuation and extra spaces, accepts any alternative separated by `/` or `;`,
 treats words in `(brackets)` as optional, and accepts a missing accent but points it out. It runs entirely on
 the device; no API calls are needed.
+
+### Fill the gap session (cloze; web and Android)
+
+```
+queue = sentences that contain a gap, shuffled if the setting is on;  missed = {};  total = queue.size
+
+show queue[0].text with each {{gap}} blanked ("______", or "____(1)", "____(2)" when there are several),
+     plus the translation and "(hint)" if present; one input per gap
+"Check"             → check every gap with the same rules as Practice; show the answers in the sentence
+                      (green right, red wrong), "you wrote X → Y" for each wrong gap, and the explanation
+"Next" if all right → remove queue[0]
+"Next" otherwise    → move queue[0] to the end of the queue; add its id to `missed`
+
+when queue is empty → summary with the missed sentences written out in full
+                      [Practice missed sentences] / [Start again]
+```
+
+The parsing and checking live in `android/.../ui/practice/Cloze.kt` + `AnswerChecker.kt` and
+`frontend/src/cloze.js`; keep the two in step.
 
 ### Admin mode (shown only when Mode = Admin)
 
@@ -465,8 +525,8 @@ Notes:
   only a UI switch. Before publishing an app that points at a public API, add authentication on the server
   (for example an admin API key or user accounts with roles). The Android client will then need to send
   credentials on write requests.
-- **No per-user progress.** Study and Practice results aren't stored on the server. A "learned" or spaced-repetition
-  feature would need new endpoints. Until then it could be stored locally, e.g. with Room.
+- **No per-user progress.** Study, Practice and Fill the gap results aren't stored on the server. A "learned" or
+  spaced-repetition feature would need new endpoints; see [ROADMAP.md](ROADMAP.md) §1.
 - **No pagination.** List endpoints return everything. That's fine for the current content size.
 - **No offline support.** Every screen loads from the API. Consider caching courses, subjects, lessons and
   vocabulary locally for offline study.

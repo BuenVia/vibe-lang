@@ -1,9 +1,12 @@
 package com.vibelang.android.ui.subject
 
 import com.vibelang.android.data.ApiException
+import com.vibelang.android.data.BulkSentenceRequest
 import com.vibelang.android.data.BulkVocabularyRequest
 import com.vibelang.android.data.Lesson
 import com.vibelang.android.data.LessonRequest
+import com.vibelang.android.data.Sentence
+import com.vibelang.android.data.SentenceRequest
 import com.vibelang.android.data.Subject
 import com.vibelang.android.data.VibeLangApi
 import com.vibelang.android.data.Vocabulary
@@ -13,7 +16,12 @@ import com.vibelang.android.ui.LoadViewModel
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 
-data class SubjectData(val subject: Subject, val lesson: Lesson?, val vocabulary: List<Vocabulary>)
+data class SubjectData(
+    val subject: Subject,
+    val lesson: Lesson?,
+    val vocabulary: List<Vocabulary>,
+    val sentences: List<Sentence>,
+)
 
 /** Returns the subject's lesson, or null when it has none (the API answers 404). */
 suspend fun VibeLangApi.lessonOrNull(subjectId: Long): Lesson? {
@@ -31,7 +39,8 @@ class SubjectViewModel(private val api: VibeLangApi) : LoadViewModel<Long, Subje
         val subject = async { api.subject(key) }
         val lesson = async { api.lessonOrNull(key) }
         val vocabulary = async { api.vocabulary(key) }
-        SubjectData(subject.await(), lesson.await(), vocabulary.await())
+        val sentences = async { api.sentences(key) }
+        SubjectData(subject.await(), lesson.await(), vocabulary.await(), sentences.await())
     }
 
     private val subjectId get() = currentKey!!
@@ -68,6 +77,28 @@ class SubjectViewModel(private val api: VibeLangApi) : LoadViewModel<Long, Subje
     fun importVocabulary(items: List<VocabularyRequest>, onDone: () -> Unit) = action(onDone) {
         val created = api.addVocabularyBulk(subjectId, BulkVocabularyRequest(items))
         updateData { it.copy(vocabulary = it.vocabulary + created) }
+    }
+
+    // Sentences
+
+    fun addSentence(request: SentenceRequest, onDone: () -> Unit) = action(onDone) {
+        val created = api.addSentence(subjectId, request)
+        updateData { it.copy(sentences = it.sentences + created) }
+    }
+
+    fun updateSentence(id: Long, request: SentenceRequest, onDone: () -> Unit) = action(onDone) {
+        val updated = api.updateSentence(id, request)
+        updateData { d -> d.copy(sentences = d.sentences.map { if (it.id == id) updated else it }) }
+    }
+
+    fun deleteSentence(item: Sentence) = action {
+        api.deleteSentence(item.id).requireSuccess()
+        updateData { d -> d.copy(sentences = d.sentences.filter { it.id != item.id }) }
+    }
+
+    fun importSentences(items: List<SentenceRequest>, onDone: () -> Unit) = action(onDone) {
+        val created = api.addSentencesBulk(subjectId, BulkSentenceRequest(items))
+        updateData { it.copy(sentences = it.sentences + created) }
     }
 
     // Unlike list screens, a failed write here shouldn't reload the whole page (it would reset open editors).

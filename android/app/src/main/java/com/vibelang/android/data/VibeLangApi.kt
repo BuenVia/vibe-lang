@@ -83,4 +83,20 @@ interface VibeLangApi {
 
     @DELETE("api/vocabulary/{id}")
     suspend fun deleteVocabulary(@Path("id") id: Long): Response<Unit>
+
+    // Sentences (Fill the gap)
+    @GET("api/subjects/{id}/sentences")
+    suspend fun sentences(@Path("id") subjectId: Long): List<Sentence>
+
+    @POST("api/subjects/{id}/sentences")
+    suspend fun addSentence(@Path("id") subjectId: Long, @Body body: SentenceRequest): Sentence
+
+    @POST("api/subjects/{id}/sentences/bulk")
+    suspend fun addSentencesBulk(@Path("id") subjectId: Long, @Body body: BulkSentenceRequest): List<Sentence>
+
+    @PUT("api/sentences/{id}")
+    suspend fun updateSentence(@Path("id") id: Long, @Body body: SentenceRequest): Sentence
+
+    @DELETE("api/sentences/{id}")
+    suspend fun deleteSentence(@Path("id") id: Long): Response<Unit>
 }
