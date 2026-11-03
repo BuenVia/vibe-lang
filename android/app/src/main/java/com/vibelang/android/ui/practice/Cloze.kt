@@ -12,7 +12,8 @@ object Cloze {
         data class Gap(val index: Int, val answer: String) : Part
     }
 
-    private val GAP = Regex("""\{\{([^{}]*)}}""")
+    // Every brace is escaped: Android's ICU regex engine rejects a bare "}" that the desktop JVM accepts.
+    private val GAP = Regex("""\{\{([^{}]*)\}\}""")
 
     fun parse(text: String): List<Part> {
         val parts = mutableListOf<Part>()
